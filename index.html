@@ -882,7 +882,6 @@ async function proxyFetch(targetUrl, opts = {}) {
   const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
   return fetch(proxyUrl, opts);
 }
-}
 
 // =============================================
 // Relay & Manifest Loading
