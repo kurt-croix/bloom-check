@@ -14,7 +14,7 @@
   <div class="login-box">
     <h1>Blossom Explorer</h1>
     <p>Browse and manage your stored files (blobs)</p>
-    <p style="margin-top:8px"><a href="/glossary" style="color:#8b949e;font-size:12px;text-decoration:none">What's a blob? → Glossary</a></p>
+    <p style="margin-top:8px"><a href="glossary.html" style="color:#8b949e;font-size:12px;text-decoration:none">What's a blob? → Glossary</a></p>
     <div id="extStatus" class="ext-status">Checking for Nostr login extension...</div>
     <input type="text" class="server-input" id="serverInput" placeholder="Blossom server URL (e.g. https://blossom.primal.net)" value="">
     <button class="btn primary" id="loginBtn" disabled>Connect with Nostr</button>
@@ -230,11 +230,11 @@
     </div>
     <div class="modal-body" style="text-align:center">
       <video id="tutorialVideo" controls autoplay style="width:100%;max-height:65vh;background:#000;border-radius:6px">
-        <source src="/demo-video" type="video/mp4">
-        Your browser does not support the video tag.
+        <source src="/demo-video" type="video/mp4" onerror="this.parentElement.style.display='none';document.getElementById('tutorialFallback').style.display='block'">
       </video>
+      <p id="tutorialFallback" style="display:none;font-size:14px;color:#8b949e;margin-top:20px">Tutorial video available when running locally with <code style="color:#58a6ff">bun server.ts</code></p>
       <p style="font-size:12px;color:#8b949e;margin-top:8px">5-act walkthrough: upload, share, audit, modify, verify</p>
-      <a href="/glossary" style="font-size:13px;color:#58a6ff;text-decoration:none;display:inline-block;margin-top:10px">&#128218; Glossary — what do all these terms mean?</a>
+      <a href="glossary.html" style="font-size:13px;color:#58a6ff;text-decoration:none;display:inline-block;margin-top:10px">&#128218; Glossary — what do all these terms mean?</a>
     </div>
   </div>
 </div>
@@ -2515,6 +2515,13 @@ loginBtn.addEventListener('click', async () => {
 
 document.getElementById('infoBtn').addEventListener('click', () => {
   openModal('infoModal');
+  // Show fallback if video can't load (GitHub Pages has no /demo-video route)
+  const video = document.getElementById('tutorialVideo');
+  const fallback = document.getElementById('tutorialFallback');
+  if (video && video.networkState === 3) { // NETWORK_NO_SOURCE
+    video.style.display = 'none';
+    if (fallback) fallback.style.display = 'block';
+  }
 });
 
 document.getElementById('logoutBtn').addEventListener('click', () => {
