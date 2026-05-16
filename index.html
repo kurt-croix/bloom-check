@@ -229,8 +229,7 @@
       <button class="btn-sm" onclick="closeModal('infoModal')">&times;</button>
     </div>
     <div class="modal-body" style="text-align:center">
-      <video id="tutorialVideo" controls autoplay style="width:100%;max-height:65vh;background:#000;border-radius:6px">
-        <source src="/demo-video" type="video/mp4" onerror="this.parentElement.style.display='none';document.getElementById('tutorialFallback').style.display='block'">
+      <video id="tutorialVideo" controls autoplay style="width:100%;max-height:65vh;background:#000;border-radius:6px;display:none">
       </video>
       <p id="tutorialFallback" style="display:none;font-size:14px;color:#8b949e;margin-top:20px">Tutorial video available when running locally with <code style="color:#58a6ff">bun server.ts</code></p>
       <p style="font-size:12px;color:#8b949e;margin-top:8px">5-act walkthrough: upload, share, audit, modify, verify</p>
@@ -2515,12 +2514,17 @@ loginBtn.addEventListener('click', async () => {
 
 document.getElementById('infoBtn').addEventListener('click', () => {
   openModal('infoModal');
-  // Show fallback if video can't load (GitHub Pages has no /demo-video route)
+  // Lazy-load tutorial video; show fallback if unavailable (e.g. GitHub Pages)
   const video = document.getElementById('tutorialVideo');
   const fallback = document.getElementById('tutorialFallback');
-  if (video && video.networkState === 3) { // NETWORK_NO_SOURCE
-    video.style.display = 'none';
-    if (fallback) fallback.style.display = 'block';
+  if (video && !video.src && video.children.length === 0) {
+    const source = document.createElement('source');
+    source.src = '/demo-video';
+    source.type = 'video/mp4';
+    source.onerror = () => { video.style.display = 'none'; if (fallback) fallback.style.display = 'block'; };
+    video.appendChild(source);
+    video.style.display = '';
+    video.load();
   }
 });
 
