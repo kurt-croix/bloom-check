@@ -1557,6 +1557,12 @@ async function showApp() {
   buildFileTree();
   await loadAuditStatus();
   renderTree();
+
+  // Show tutorial video on first visit
+  if (!localStorage.getItem('blossom_tutorial_seen')) {
+    document.getElementById('infoBtn').click();
+    localStorage.setItem('blossom_tutorial_seen', '1');
+  }
 }
 
 /** Shared view — read-only, no auth needed */
