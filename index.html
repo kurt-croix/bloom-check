@@ -871,15 +871,17 @@ async function createAuthToken(action, sha256) {
 }
 
 // Proxy fetch through Bun server to avoid CORS.
-// On GitHub Pages (no proxy server), make direct requests and hope CORS is allowed.
+// On static deployments, use a public CORS proxy.
 async function proxyFetch(targetUrl, opts = {}) {
   if (location.port) {
-    // Dev server available — use proxy
+    // Dev server available — use local proxy
     const proxyUrl = `/api/proxy?target=${encodeURIComponent(targetUrl)}`;
     return fetch(proxyUrl, opts);
   }
-  // Static deployment — direct request
-  return fetch(targetUrl, opts);
+  // Static deployment — use public CORS proxy
+  const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+  return fetch(proxyUrl, opts);
+}
 }
 
 // =============================================

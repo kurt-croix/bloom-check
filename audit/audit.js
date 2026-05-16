@@ -143,13 +143,15 @@ async function updateHeaderWithProfiles() {
 // =============================================
 
 /** Proxy fetch through Bun server to avoid CORS.
- *  On static deployments (no proxy), make direct requests. */
+ *  On static deployments, use a public CORS proxy. */
 async function proxyFetch(targetUrl, opts = {}) {
   if (location.port) {
     const proxyUrl = `/api/proxy?target=${encodeURIComponent(targetUrl)}`;
     return fetch(proxyUrl, opts);
   }
-  return fetch(targetUrl, opts);
+  // Static deployment — use public CORS proxy
+  const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+  return fetch(proxyUrl, opts);
 }
 
 /** Fetch ALL blobs for the target pubkey from multiple sources */
