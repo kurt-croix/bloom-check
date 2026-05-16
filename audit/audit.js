@@ -142,10 +142,14 @@ async function updateHeaderWithProfiles() {
 // Blossom server API
 // =============================================
 
-/** Proxy fetch through Bun server to avoid CORS */
+/** Proxy fetch through Bun server to avoid CORS.
+ *  On static deployments (no proxy), make direct requests. */
 async function proxyFetch(targetUrl, opts = {}) {
-  const proxyUrl = `/api/proxy?target=${encodeURIComponent(targetUrl)}`;
-  return fetch(proxyUrl, opts);
+  if (location.port) {
+    const proxyUrl = `/api/proxy?target=${encodeURIComponent(targetUrl)}`;
+    return fetch(proxyUrl, opts);
+  }
+  return fetch(targetUrl, opts);
 }
 
 /** Fetch ALL blobs for the target pubkey from multiple sources */
