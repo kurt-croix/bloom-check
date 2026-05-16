@@ -1,0 +1,356 @@
+/* ============================================================
+   Blossom Audit — Page-Specific Styles
+   Styles not covered by the shared theme.css.
+   Uses CSS variables from theme.css throughout.
+   ============================================================ */
+
+/* ----------------------------------------------------------
+   Summary Cards
+   ---------------------------------------------------------- */
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.summary-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.summary-card .number {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.summary-card .label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.summary-card.changed .number { color: var(--red); }
+.summary-card.unchanged .number { color: var(--green); }
+.summary-card.new .number { color: var(--accent-blue); }
+.summary-card.removed .number { color: var(--text-secondary); }
+.summary-card.total .number { color: var(--amber); }
+
+/* ----------------------------------------------------------
+   Audit Table
+   ---------------------------------------------------------- */
+.audit-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.audit-table th {
+  text-align: left;
+  padding: 8px 14px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.audit-table td {
+  padding: 8px 14px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.audit-table tr:hover td {
+  background: var(--bg-card);
+}
+
+.audit-table tr.changed td {
+  background: var(--red-tint);
+}
+
+.audit-table tr.new-file td {
+  background: var(--accent-blue-tint);
+}
+
+.audit-table tr.removed-file td {
+  background: rgba(139, 148, 158, 0.07);
+}
+
+/* ----------------------------------------------------------
+   Status Badges
+   ---------------------------------------------------------- */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.badge.changed {
+  background: var(--red-tint);
+  color: var(--red);
+  border: 1px solid var(--red-border);
+}
+
+.badge.unchanged {
+  background: var(--green-tint);
+  color: var(--green);
+  border: 1px solid var(--green-border);
+}
+
+.badge.new-file {
+  background: var(--accent-blue-tint);
+  color: var(--accent-blue);
+  border: 1px solid var(--accent-blue-glow);
+}
+
+.badge.removed-file {
+  background: rgba(139, 148, 158, 0.13);
+  color: var(--text-secondary);
+  border: 1px solid rgba(139, 148, 158, 0.27);
+}
+
+/* ----------------------------------------------------------
+   History Expandable
+   ---------------------------------------------------------- */
+.history-toggle {
+  background: none;
+  border: none;
+  color: var(--accent-blue);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+}
+
+.history-toggle:hover {
+  text-decoration: underline;
+}
+
+.history-panel {
+  display: none;
+  padding: 8px 14px 8px 56px;
+}
+
+.history-panel.show {
+  display: table-row;
+}
+
+.history-panel td {
+  background: var(--bg-dark);
+}
+
+.history-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.history-entry .timestamp {
+  color: var(--text-secondary);
+  min-width: 140px;
+}
+
+.history-entry .hash {
+  font-size: 11px;
+}
+
+/* ----------------------------------------------------------
+   Snapshot List
+   ---------------------------------------------------------- */
+.snapshot-list {
+  margin-bottom: 20px;
+}
+
+.snapshot-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  margin-right: 8px;
+  margin-bottom: 8px;
+}
+
+.snapshot-item.active {
+  border-color: var(--amber);
+}
+
+.snapshot-item .snap-date {
+  color: var(--text-primary);
+}
+
+.snapshot-item .snap-count {
+  color: var(--text-secondary);
+}
+
+/* ----------------------------------------------------------
+   File Preview Tree
+   ---------------------------------------------------------- */
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.preview-header h3 {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.preview-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.preview-stats span strong {
+  color: var(--text-primary);
+}
+
+.file-tree {
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: default;
+}
+
+.tree-row:last-child {
+  border-bottom: none;
+}
+
+.tree-row:hover {
+  background: var(--bg-card);
+}
+
+.tree-row.folder {
+  color: var(--accent-blue);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tree-row.file {
+  color: var(--text-primary);
+}
+
+.tree-row .icon {
+  font-size: 14px;
+  width: 18px;
+  text-align: center;
+}
+
+.tree-row .sha {
+  font-family: monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-left: auto;
+}
+
+.tree-row .size {
+  font-size: 11px;
+  color: var(--text-dim);
+  min-width: 60px;
+  text-align: right;
+}
+
+.tree-row .source {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.source.manifest {
+  background: var(--accent-blue-tint);
+  color: var(--accent-blue);
+}
+
+.source.blossom {
+  background: var(--green-tint);
+  color: var(--green);
+}
+
+.tree-indent {
+  display: inline-block;
+}
+
+/* ----------------------------------------------------------
+   Main Content Area
+   ---------------------------------------------------------- */
+.main {
+  padding: 20px 24px;
+}
+
+/* ----------------------------------------------------------
+   Diff View (inline in modal)
+   ---------------------------------------------------------- */
+.diff-line {
+  display: flex;
+  min-height: 1.6em;
+}
+
+.diff-line .diff-num {
+  width: 40px;
+  text-align: right;
+  padding-right: 8px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.diff-line .diff-text {
+  white-space: pre-wrap;
+  word-break: break-all;
+  flex: 1;
+}
+
+.diff-line.removed {
+  background: rgba(248, 81, 73, 0.09);
+}
+
+.diff-line.removed .diff-text {
+  color: #ffa198;
+}
+
+.diff-line.removed-empty {
+  background: rgba(248, 81, 73, 0.05);
+}
+
+.diff-line.added {
+  background: rgba(63, 185, 80, 0.09);
+}
+
+.diff-line.added .diff-text {
+  color: #7ee787;
+}
+
+.diff-line.added-empty {
+  background: rgba(63, 185, 80, 0.05);
+}
+
+.diff-line.same {
+  background: transparent;
+}

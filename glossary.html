@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glossary — Blossom Explorer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #c9d1d9; line-height: 1.7; }
+  .header { background: #161b22; border-bottom: 1px solid #30363d; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .header h1 { font-size: 18px; color: #58a6ff; }
+  .header a { color: #8b949e; text-decoration: none; font-size: 14px; }
+  .header a:hover { color: #58a6ff; }
+  .container { max-width: 760px; margin: 0 auto; padding: 32px 24px; }
+  .intro { font-size: 15px; color: #8b949e; margin-bottom: 32px; }
+  .section-title { font-size: 13px; font-weight: 600; color: #58a6ff; text-transform: uppercase; letter-spacing: 1px; margin: 32px 0 12px; border-bottom: 1px solid #21262d; padding-bottom: 8px; }
+  .term { margin-bottom: 20px; }
+  .term-word { font-size: 16px; font-weight: 600; color: #e6edf3; }
+  .term-aka { font-size: 12px; color: #6e7681; margin-left: 8px; font-weight: 400; }
+  .term-def { font-size: 14px; color: #c9d1d9; margin-top: 4px; }
+  .term-example { font-size: 13px; color: #8b949e; margin-top: 4px; padding-left: 12px; border-left: 2px solid #30363d; }
+  .back-btn { display: inline-block; background: #21262d; color: #c9d1d9; border: 1px solid #30363d; padding: 6px 14px; border-radius: 6px; text-decoration: none; font-size: 13px; }
+  .back-btn:hover { background: #30363d; color: #58a6ff; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Glossary</h1>
+  <a href="/">Back to Explorer</a>
+</div>
+<div class="container">
+  <p class="intro">
+    New to Blossom Explorer? Here's what all the terms mean, in plain English.
+  </p>
+
+  <div class="section-title">Core Concepts</div>
+
+  <div class="term">
+    <span class="term-word">Nostr</span>
+    <span class="term-aka">pronounced "nost-er"</span>
+    <p class="term-def">A decentralized network for sharing information — kind of like how email works across many providers, but for social data and files. Nobody owns it, and your account can't be deactivated by a company.</p>
+    <p class="term-example">You connect to Nostr using a browser extension, similar to how you'd log in with Google — except you control your own identity.</p>
+  </div>
+
+  <div class="term">
+    <span class="term-word">Blossom</span>
+    <p class="term-def">A file storage system built on top of Nostr. You upload files to a Blossom server, and they're associated with your Nostr account. Think of it like Dropbox or Google Drive, but decentralized.</p>
+  </div>
+
+  <div class="term">
+    <span class="term-word">Relay</span>
+    <span class="term-aka">also: Nostr relay, server</span>
+    <p class="term-def">A server in the Nostr network that stores and forwards messages. Blossom Explorer uses relays to publish file directories and audit snapshots. Multiple relays can hold copies of the same data for redundancy.</p>
+    <p class="term-example">Like how a cell tower carries your calls — relays carry your data across the Nostr network.</p>
+  </div>
+
+  <div class="section-title">Your Account &amp; Identity</div>
+
+  <div class="term">
+    <span class="term-word">npub</span>
+    <span class="term-aka">public key, your address</span>
+    <p class="term-def">Your public identity on Nostr — like an email address. It starts with <code>npub1...</code> and is safe to share with anyone. People use it to look up your files or send you messages.</p>
+    <p class="term-example">npub1hs5a237906ahqv5jux... — you can share this freely.</p>
+  </div>
+
+  <div class="term">
+    <span class="term-word">nsec</span>
+    <span class="term-aka">private key, secret key</span>
+    <p class="term-def">The secret that proves you own your Nostr account — like a password, but more powerful. <strong>Never share this with anyone.</strong> If someone gets your nsec, they can impersonate you.</p>
+    <p class="term-example">nsec1l7ru3myyytnc6fc6... — treat this like the key to your house.</p>
+  </div>
+
+  <div class="term">
+    <span class="term-word">Nostr Extension</span>
+    <span class="term-aka">browser extension, NIP-07 wallet</span>
+    <p class="term-def">A small browser add-on (like Nos2x or Alby) that securely holds your Nostr keys and signs actions on your behalf. Instead of pasting your secret key into websites, the extension handles authentication safely.</p>
+    <p class="term-example">Similar to how password managers auto-fill logins — but for Nostr identity.</p>
+  </div>
+
+  <div class="section-title">Files &amp; Storage</div>
+
+  <div class="term">
+    <span class="term-word">Blob</span>
+    <span class="term-aka">file, stored file</span>
+    <p class="term-def">Any file you've uploaded to a Blossom server — images, documents, videos, anything. "Blob" is just the technical name for a stored file.</p>
+  </div>
+
+  <div class="term">
+    <span class="term-word">Hash</span>
+    <span class="term-aka">SHA-256, fingerprint, checksum</span>
+    <p class="term-def">A unique digital fingerprint for a file. Every file has exactly one hash, and even a tiny change to the file produces a completely different hash. This is how Blossom detects if a file has been modified.</p>
+    <p class="term-example">Think of it like a tamper-evident seal on a jar — if the seal is broken (hash changed), you know something was altered.</p>
+  </div>
+
+  <div class="term">
+    <span class="term-word">Manifest</span>
+    <span class="term-aka">file directory, folder map</span>
+    <p class="term-def">A record of which files you have and where they're located. Published to Nostr relays so others can browse your shared files without needing your login.</p>
+    <p class="term-example">Like a table of contents for your file storage.</p>
+  </div>
+
+  <div class="term">
+    <span class="term-word">Mirror</span>
+    <span class="term-aka">copy, replicate</span>
+    <p class="term-def">Copying your files from one Blossom server to another for backup or faster access in different regions.</p>
+  </div>
+
+  <div class="section-title">Auditing &amp; Verification</div>
+
+  <div class="term">
+    <span class="term-word">Audit</span>
+    <span class="term-aka">verification, integrity check</span>
+    <p class="term-def">The process of checking whether your files have changed since the last time they were recorded. An audit compares current file fingerprints against a saved snapshot.</p>
+  </div>
+
+  <div class="term">
+    <span class="term-word">Snapshot</span>
+    <span class="term-aka">baseline, checkpoint</span>
+    <p class="term-def">A saved record of all your file fingerprints at a specific point in time. Creating a snapshot is like taking a photo of your files — you can compare later to see if anything changed.</p>
+  </div>
+
+  <div class="term">
+    <span class="term-word">Auditor</span>
+    <span class="term-aka">verifier, inspector</span>
+    <p class="term-def">A trusted third party who creates snapshots of your files and later checks them for changes. The auditor doesn't need access to your account — they only see file names and fingerprints.</p>
+  </div>
+
+  <div class="term">
+    <span class="term-word">Diff</span>
+    <span class="term-aka">comparison, side-by-side view</span>
+    <p class="term-def">A view showing exactly what changed between two versions of a file. Added lines are highlighted in green, removed lines in red.</p>
+    <p class="term-example">Like "track changes" in a word processor, but for any text file.</p>
+  </div>
+
+  <div class="section-title">Status Messages</div>
+
+  <div class="term">
+    <span class="term-word">CHANGED</span>
+    <span class="term-aka">modified, altered</span>
+    <p class="term-def">A file that was detected to have a different fingerprint than the snapshot. The file name is the same, but the contents may have been replaced or edited.</p>
+  </div>
+
+  <div class="term">
+    <span class="term-word">NEW</span>
+    <span class="term-aka">added</span>
+    <p class="term-def">A file that wasn't in the previous snapshot — it was added after the baseline was recorded.</p>
+  </div>
+
+  <div class="term">
+    <span class="term-word">GONE</span>
+    <span class="term-aka">removed, missing</span>
+    <p class="term-def">A file that existed in the snapshot but is no longer found on the server.</p>
+  </div>
+
+  <div style="margin-top: 48px; text-align: center;">
+    <a href="/" class="back-btn">Back to Explorer</a>
+  </div>
+</div>
+</body>
+</html>

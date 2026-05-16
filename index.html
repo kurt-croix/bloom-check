@@ -1,0 +1,2797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blossom Explorer</title>
+  <link rel="stylesheet" href="shared/theme.css">
+  <link rel="stylesheet" href="explorer.css">
+</head>
+<body>
+
+<!-- Login screen -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-box">
+    <h1>Blossom Explorer</h1>
+    <p>Browse and manage your stored files (blobs)</p>
+    <p style="margin-top:8px"><a href="/glossary" style="color:#8b949e;font-size:12px;text-decoration:none">What's a blob? → Glossary</a></p>
+    <div id="extStatus" class="ext-status">Checking for Nostr login extension...</div>
+    <input type="text" class="server-input" id="serverInput" placeholder="Blossom server URL (e.g. https://blossom.primal.net)" value="">
+    <button class="btn primary" id="loginBtn" disabled>Connect with Nostr</button>
+    <div id="loginError" class="login-error"></div>
+  </div>
+</div>
+
+<!-- Main app (hidden until login) -->
+<div id="app" style="display:none">
+  <div class="header">
+    <h1>Blossom Explorer</h1>
+    <div class="header-right">
+      <input type="text" class="server-editable" id="serverDisplay" title="Blossom server URL">
+      <input type="text" class="server-editable" id="auditorNpubInput" title="Verifier address (npub) — filters audit snapshots by this verifier" placeholder="verifier npub (optional)" style="width:180px;color:#d29922">
+      <span class="header-info" id="headerInfo"></span>
+      <button class="btn-sm info-btn" id="infoBtn" title="Tutorial video" style="font-size:14px;font-weight:bold;padding:2px 8px;border-radius:50%">&#9432;</button>
+      <button class="btn-sm" id="logoutBtn">Logout</button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <input type="search" id="searchInput" placeholder="Search by name, content, or fingerprint (hash)...">
+    <input type="text" id="searchPathInput" placeholder="Filter path (e.g. /public)" style="width:160px;font-size:12px;padding:4px 8px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;border-radius:4px">
+    <button class="btn-sm" id="searchBtn" style="white-space:nowrap">Search</button>
+    <span id="searchSpinner" style="display:none;color:#58a6ff;font-size:12px;margin-left:4px">&#9696;</span>
+    <select id="typeFilter">
+      <option value="">All types</option>
+      <option value="image/">Images</option>
+      <option value="video/">Videos</option>
+      <option value="audio/">Audio</option>
+      <option value="application/pdf">PDFs</option>
+      <option value="text/">Text</option>
+      <option value="application/">Other</option>
+    </select>
+    <div class="spacer"></div>
+    <button class="btn-sm upload" id="newFolderBtn">New Folder</button>
+    <button class="btn-sm upload" id="uploadFilesBtn">Upload Files</button>
+    <button class="btn-sm upload" id="uploadDirBtn">Upload Folder</button>
+    <button class="btn-sm upload" id="syncFolderBtn" style="background:#1f6feb;border-color:#1f6feb">Sync Folder</button>
+    <button class="btn-sm" id="mirrorBtn" style="background:#6e40c9;border-color:#6e40c9;color:#fff">Copy to Server</button>
+    <button class="btn-sm" id="viewGridBtn" title="Grid">&#9638;</button>
+    <button class="btn-sm" id="viewListBtn" title="List">&#9776;</button>
+    <button class="btn-sm refresh" id="refreshBtn">Refresh</button>
+  </div>
+
+  <div class="main-layout">
+    <!-- Sidebar: file tree -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span>Files</span>
+        <button id="sidebarToggle" title="Collapse sidebar">&#9664;</button>
+      </div>
+      <div class="breadcrumb" id="breadcrumb">
+        <span class="crumb" onclick="navigateTo('/')">/</span>
+      </div>
+      <div class="tree" id="tree">
+        <div class="sidebar-empty">No site manifests found.<br>Upload files to create paths.</div>
+      </div>
+      <div class="relay-status" id="relayStatus">
+        <span class="dot loading"></span> Connecting to relays...
+      </div>
+    </div>
+
+    <!-- Right: content panel -->
+    <div class="content-panel">
+      <!-- Upload drop zone -->
+      <div id="uploadZone" class="upload-zone" style="display:none">
+        <div class="upload-icon">&#128228;</div>
+        <p>Drop files here to upload</p>
+        <div style="margin-top:8px">
+          <small>Path: </small>
+          <input type="text" class="upload-path-input" id="uploadPathInput" placeholder="/ (root)">
+        </div>
+      </div>
+
+      <!-- Upload progress -->
+      <div id="uploadProgress" class="upload-progress" style="display:none"></div>
+
+      <div class="stats" id="statsBar"></div>
+
+      <div id="content">
+        <div class="loading"><div class="spinner"></div><br><br>Loading...</div>
+      </div>
+
+      <div class="pagination" id="pagination" style="display:none">
+        <button class="btn-sm" id="prevBtn">Previous</button>
+        <span style="font-size:13px;color:#8b949e" id="pageInfo"></span>
+        <button class="btn-sm" id="nextBtn">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden file inputs -->
+<div class="file-inputs">
+  <input type="file" id="fileInput" multiple>
+  <input type="file" id="dirInput" webkitdirectory multiple>
+</div>
+
+<!-- Detail modal -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal" style="min-width:380px">
+    <div class="modal-header">
+      <h2 id="modalTitle">Blob Details</h2>
+      <button class="btn-sm" onclick="closeModal('detailModal')">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal" style="min-width:340px">
+    <div class="modal-header">
+      <h2 style="color:#f85149">Delete Blob</h2>
+      <button class="btn-sm" onclick="closeModal('deleteModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="confirm-text">Are you sure? This cannot be undone.</p>
+      <div class="confirm-hash" id="deleteHash"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm" onclick="closeModal('deleteModal')">Cancel</button>
+      <button class="btn-sm" id="confirmDeleteBtn" style="color:#f85149;border-color:#f85149">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- New folder modal -->
+<div class="modal-overlay" id="newFolderModal">
+  <div class="modal" style="min-width:340px">
+    <div class="modal-header">
+      <h2>Create Folder</h2>
+      <button class="btn-sm" onclick="closeModal('newFolderModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="confirm-text">Folder name:</p>
+      <input type="text" class="new-folder-input" id="newFolderInput" placeholder="folder-name">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm" onclick="closeModal('newFolderModal')">Cancel</button>
+      <button class="btn-sm" id="confirmNewFolderBtn" style="color:#3fb950;border-color:#3fb950">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sync modal -->
+<div class="modal-overlay" id="syncModal">
+  <div class="modal" style="min-width:400px">
+    <div class="modal-header">
+      <h2>Sync Folder</h2>
+      <button class="btn-sm" onclick="closeModal('syncModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom:16px">
+        <p style="font-size:13px;color:#8b949e;margin-bottom:4px">Source (local):</p>
+        <div id="syncSourceName" style="font-size:14px;font-weight:500;padding:8px 12px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#58a6ff"></div>
+      </div>
+      <div>
+        <p style="font-size:13px;color:#8b949e;margin-bottom:4px">Target (server path):</p>
+        <input type="text" class="new-folder-input" id="syncTargetPath" placeholder="/">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm" onclick="closeModal('syncModal')">Cancel</button>
+      <button class="btn-sm" id="confirmSyncBtn" style="color:#1f6feb;border-color:#1f6feb">Sync</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mirror modal -->
+<div class="modal-overlay" id="mirrorModal">
+  <div class="modal" style="min-width:480px">
+    <div class="modal-header">
+      <h2>Copy Files to Another Server</h2>
+      <button class="btn-sm" onclick="closeModal('mirrorModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:#8b949e;margin-bottom:12px">Copy your files (blobs) from <strong id="mirrorSource"></strong> to another Blossom server as a backup.</p>
+      <div style="margin-bottom:12px">
+        <label style="font-size:13px;color:#8b949e;display:block;margin-bottom:4px">Target Blossom Server</label>
+        <input type="text" class="server-input" id="mirrorTargetInput" placeholder="https://blossom.primal.net" value="https://blossom.primal.net" style="width:100%">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:13px;color:#8b949e;display:block;margin-bottom:4px">Scope</label>
+        <select id="mirrorScope" style="width:100%;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:8px 12px;border-radius:6px">
+          <option value="visible">Visible blobs only</option>
+          <option value="all">All blobs (paginated)</option>
+        </select>
+      </div>
+      <div id="mirrorStatus" style="font-size:12px;color:#8b949e;margin-top:8px"></div>
+      <div id="mirrorProgress" style="display:none;margin-top:12px">
+        <div style="background:#161b22;border-radius:6px;overflow:hidden;height:8px">
+          <div id="mirrorBar" style="height:100%;background:#6e40c9;width:0%;transition:width 0.2s"></div>
+        </div>
+        <div id="mirrorCount" style="font-size:11px;color:#8b949e;margin-top:4px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm" onclick="closeModal('mirrorModal')">Cancel</button>
+      <button class="btn-sm" id="confirmMirrorBtn" style="color:#6e40c9;border-color:#6e40c9">Start Mirror</button>
+    </div>
+  </div>
+</div>
+
+<!-- Info / Tutorial modal -->
+<div class="modal-overlay info-modal" id="infoModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Tutorial</h2>
+      <button class="btn-sm" onclick="closeModal('infoModal')">&times;</button>
+    </div>
+    <div class="modal-body" style="text-align:center">
+      <video id="tutorialVideo" controls autoplay style="width:100%;max-height:65vh;background:#000;border-radius:6px">
+        <source src="/demo-video" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>
+      <p style="font-size:12px;color:#8b949e;margin-top:8px">5-act walkthrough: upload, share, audit, modify, verify</p>
+      <a href="/glossary" style="font-size:13px;color:#58a6ff;text-decoration:none;display:inline-block;margin-top:10px">&#128218; Glossary — what do all these terms mean?</a>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+// Shared utilities
+import { bech32Decode, convertBits, decodeNpub, encodeNpub } from './shared/bech32.js';
+import { relaySubscribe, queryRelays, publishToRelays, filterRelays } from './shared/relay.js';
+import { esc, fmtBytes, fmtDate, isImg, isVid, isAud, isText, fname } from './shared/dom.js';
+// =============================================
+// NIP-07 extension reference
+// =============================================
+let nostrExt;
+
+// =============================================
+// State
+// =============================================
+let pubkey = '';
+let serverUrl = '';
+let blobs = [];
+let blobMap = new Map(); // sha256 → blob for O(1) lookups
+let filteredBlobs = [];
+
+/** Rebuild blobMap from blobs array */
+function rebuildBlobMap() {
+  blobMap = new Map(blobs.map(b => [b.sha256, b]));
+}
+let displayItems = [];
+let auditStatus = {}; // path → 'changed' | 'new' | 'removed'
+let auditorNpub = ''; // hex pubkey of trusted auditor
+let cursorStack = [];
+let currentCursor = '';
+let nextCursor = '';
+let viewMode = 'grid';
+let sortField = 'uploaded';
+let sortDir = -1;
+let uploadQueue = [];
+let uploading = false;
+
+// nsite/folder state
+let userRelays = [];       // NIP-65 relay URLs
+let manifest = null;        // latest kind 15128 event (or 35128)
+let manifestKind = 15128;   // which kind to use
+let fileTree = {};          // nested tree built from path tags
+let currentPath = '/';      // current directory being viewed
+let pathToSha = {};         // flat map: "/path/file" -> "sha256"
+let shaToPath = {};         // reverse: "sha256" -> "/path/file"
+let contentMatches = new Set(); // sha256s whose content matches current search
+let contentSearchAbort = null;  // AbortController for in-progress content search
+let expandedDirs = new Set(['/']); // which dirs are expanded in sidebar
+let activeKebab = null;     // currently open kebab menu
+let sharedView = false;     // true when viewing someone else's files via /npub
+
+const BOOTSTRAP_RELAYS = [
+  'wss://nos.lol',
+  'wss://relay.primal.net',
+  'wss://nostr.wine',
+];
+
+// Bech32 functions imported from shared/bech32.js: decodeNpub, encodeNpub
+// (bech32Decode, convertBits available as imports if needed)
+
+// =============================================
+// DOM refs
+// =============================================
+const loginScreen = document.getElementById('loginScreen');
+const app = document.getElementById('app');
+const content = document.getElementById('content');
+const statsBar = document.getElementById('statsBar');
+const pagination = document.getElementById('pagination');
+const extStatus = document.getElementById('extStatus');
+const loginBtn = document.getElementById('loginBtn');
+const loginError = document.getElementById('loginError');
+const headerInfo = document.getElementById('headerInfo');
+const uploadZone = document.getElementById('uploadZone');
+const uploadProgressEl = document.getElementById('uploadProgress');
+const serverDisplay = document.getElementById('serverDisplay');
+const treeEl = document.getElementById('tree');
+const breadcrumbEl = document.getElementById('breadcrumb');
+const relayStatusEl = document.getElementById('relayStatus');
+
+// =============================================
+// Helpers
+// =============================================
+// =============================================
+// Audit integration — reads snapshots from relays (kind 5128)
+// =============================================
+let auditSnapshots = []; // in-memory cache of relay snapshots
+
+async function loadAuditStatus() {
+  auditStatus = {};
+  auditSnapshots = [];
+
+  // No auditor specified — skip audit entirely
+  if (!auditorNpub) return;
+
+  // Build filter — query kind 5128 tagged with target pubkey
+  const filter = {
+    kinds: [5128],
+    '#p': [pubkey],
+    limit: 100,
+  };
+  // If auditor npub specified, filter by their pubkey as author
+  if (auditorNpub) {
+    let auditorHex = auditorNpub;
+    if (auditorNpub.startsWith('npub1')) {
+      auditorHex = decodeNpub(auditorNpub) || auditorNpub;
+    }
+    if (auditorHex.length === 64) {
+      filter.authors = [auditorHex];
+    }
+  }
+
+  // Query kind 5128 events from relays
+  try {
+    const events = await queryRelays(userRelays, filter, 8000);
+
+    events.sort((a, b) => a.created_at - b.created_at);
+    auditSnapshots = events.map(evt => {
+      const entries = {};
+      for (const tag of evt.tags) {
+        if (tag[0] === 'path' && tag[1] && tag[2]) entries[tag[1]] = tag[2];
+      }
+      return {
+        id: evt.id,
+        timestamp: evt.created_at * 1000,
+        entries,
+        entryCount: Object.keys(entries).length,
+        snapshotter: evt.pubkey,
+        manifestRef: evt.tags.find(t => t[0] === 'a')?.[1] || '',
+        aggregateHash: evt.tags.find(t => t[0] === 'x' && t[2] === 'aggregate')?.[1] || '',
+      };
+    });
+  } catch (e) {
+    console.error('Failed to fetch relay snapshots:', e);
+  }
+
+  if (auditSnapshots.length === 0) return;
+  const last = auditSnapshots[auditSnapshots.length - 1];
+  if (!last || !last.entries) return;
+
+  for (const [path, oldSha] of Object.entries(last.entries)) {
+    const currentSha = pathToSha[path];
+    if (!currentSha) {
+      auditStatus[path] = 'removed';
+    } else if (currentSha !== oldSha) {
+      auditStatus[path] = 'changed';
+    }
+  }
+  for (const [path, sha] of Object.entries(pathToSha)) {
+    if (!last.entries[path]) {
+      auditStatus[path] = 'new';
+    }
+  }
+}
+
+// Format/helpers imported from shared/dom.js: fmtBytes, fmtDate, isImg, isVid, isAud, isText, fname, esc
+// Modal helpers imported as _openModal, _closeModal — wrapped below for PiP support
+
+/** Get display name: prefer path tag leaf, fall back to URL filename, then sha256 */
+function displayName(sha256, url) {
+  const p = shaToPath[sha256];
+  if (p) {
+    const leaf = p.split('/').filter(Boolean).pop();
+    if (leaf) return leaf;
+  }
+  const urlName = fname(url);
+  if (urlName) return urlName;
+  return sha256 ? sha256.slice(0, 12) + '...' : 'unknown';
+}
+
+// Close any open kebab menu on click outside
+document.addEventListener('click', (e) => {
+  if (activeKebab && !e.target.closest('.kebab-wrap')) {
+    closeKebab();
+  }
+});
+function closeKebab() {
+  if (activeKebab) { activeKebab.remove(); activeKebab = null; }
+}
+
+/** Build kebab menu HTML for a blob */
+function kebabMenuHtml(sha256) {
+  const pathStr = shaToPath[sha256] || '';
+  const blob = blobMap.get(sha256);
+  const n = displayName(sha256, blob?.url || '');
+  // Escape for HTML attributes
+  const escAttr = (s) => String(s).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  return `<div class="kebab-wrap" style="position:relative">
+    <button class="kebab-btn" onclick="event.stopPropagation();toggleKebab(this,'${escAttr(sha256)}')">&#8942;</button>
+  </div>`;
+}
+
+/** Toggle kebab menu open/close */
+function toggleKebab(btn, sha256) {
+  closeKebab();
+  const menu = document.createElement('div');
+  menu.className = 'kebab-menu';
+
+  // Check if this is a folder context
+  if (sha256.startsWith('folder:')) {
+    const folderName = sha256.slice(7);
+    const folderPath = (currentPath + folderName + '/').replace(/\/+/g, '/');
+    menu.innerHTML = `
+      <button class="kebab-item" onclick="event.stopPropagation();copyText('${folderPath}','Path copied')">&#128193; Copy Path</button>
+      ${!sharedView ? `<button class="kebab-item danger" onclick="event.stopPropagation();closeKebab();deletePath('${folderPath}')">&#128465; Delete Folder</button>` : ''}`;
+  } else {
+    const pathStr = shaToPath[sha256] || '';
+    const blob = blobMap.get(sha256);
+    const escAttr = (s) => String(s).replace(/'/g, "\\'");
+    const auditFlag = pathStr ? auditStatus[pathStr] : null;
+
+    let items = '';
+    // Audit section (if flagged)
+    if (auditFlag) {
+      items += `<button class="kebab-item" style="color:#d29922" onclick="event.stopPropagation();closeKebab();showAuditDetail('${sha256}')">&#128270; Show Audit</button>`;
+    }
+    items += `
+      <button class="kebab-item" onclick="event.stopPropagation();copyText('${sha256}','SHA-256 copied')">&#128203; Copy SHA-256</button>
+      ${blob ? `<button class="kebab-item" onclick="event.stopPropagation();copyText('${escAttr(blob.url)}','URL copied')">&#128279; Copy URL</button>` : ''}
+      ${pathStr ? `<button class="kebab-item" onclick="event.stopPropagation();copyText('${escAttr(pathStr)}','Path copied')">&#128193; Copy Path</button>` : ''}
+      ${!sharedView && pathStr ? `<button class="kebab-item" onclick="event.stopPropagation();closeKebab();renameFile('${sha256}')">&#9998; Rename</button>` : ''}
+      <button class="kebab-item" onclick="event.stopPropagation();closeKebab();shareBlob('${sha256}')">&#128279; Share</button>
+      <button class="kebab-item" onclick="event.stopPropagation();closeKebab();downloadBySha('${sha256}')">&#11015; Download</button>
+      ${!sharedView ? `<button class="kebab-item danger" onclick="event.stopPropagation();closeKebab();confirmDel('${sha256}')">&#128465; Delete</button>` : ''}`;
+    menu.innerHTML = items;
+  }
+
+  btn.parentElement.appendChild(menu);
+  activeKebab = menu;
+}
+
+/** Copy text to clipboard and show brief feedback */
+function copyText(text, msg) {
+  closeKebab();
+  navigator.clipboard.writeText(text).then(() => {
+    // Brief toast-like feedback
+    const el = document.createElement('div');
+    el.textContent = msg;
+    el.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#3fb950;color:#fff;padding:8px 16px;border-radius:6px;font-size:13px;z-index:999';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1500);
+  });
+}
+
+/** Share a blob (copy Nostr event data or share URL) */
+function shareBlob(sha256) {
+  const blob = blobMap.get(sha256);
+  const pathStr = shaToPath[sha256] || '';
+  let shareText = '';
+
+  // Include shared view link if we have a pubkey
+  if (pubkey) {
+    // Generate npub for sharing
+    try {
+      const npubBytes = [];
+      for (let i = 0; i < 32; i++) {
+        npubBytes.push(parseInt(pubkey.slice(i * 2, i * 2 + 2), 16));
+      }
+      const fiveBit = convertBits(npubBytes, 8, 5, true);
+      const hrpExpand = bech32HrpExpand('npub');
+      const allData = fiveBit;
+      const polymod = bech32Polymod(hrpExpand.concat(allData).concat([0,0,0,0,0,0])) ^ 1;
+      const checksum = [];
+      for (let i = 0; i < 6; i++) checksum.push((polymod >> (5 * (5 - i))) & 31);
+      const fullData = fiveBit.concat(checksum);
+      const npub = 'npub1' + fullData.map(b => BECH32_CHARSET[b]).join('');
+      shareText += 'View files: ' + location.origin + '/' + npub + '\n';
+    } catch {}
+  }
+
+  if (blob) {
+    shareText += blob.url;
+    if (pathStr) shareText += '\nPath: ' + pathStr;
+    shareText += '\nSHA-256: ' + sha256;
+    if (blob.type) shareText += '\nType: ' + blob.type;
+    shareText += '\nSize: ' + fmtBytes(blob.size);
+  } else {
+    shareText += 'SHA-256: ' + sha256;
+    if (pathStr) shareText += '\nPath: ' + pathStr;
+  }
+
+  if (navigator.share) {
+    navigator.share({ title: displayName(sha256, blob?.url || ''), text: shareText }).catch(() => {});
+  } else {
+    copyText(shareText, 'Blob info copied');
+  }
+}
+
+// =============================================
+// Audit detail — version history for a path
+// =============================================
+
+/** Get audit history for a path from relay snapshots (kind 5128) */
+function getAuditHistory(path) {
+  const history = [];
+  for (const snap of auditSnapshots) {
+    const sha = snap.entries?.[path];
+    if (sha) {
+      history.push({ timestamp: snap.timestamp, sha256: sha });
+    }
+  }
+  // Deduplicate by sha256+timestamp
+  const seen = new Set();
+  return history.filter(h => {
+    const key = h.timestamp + ':' + h.sha256;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/** Show audit detail modal for a file */
+function showAuditDetail(sha256) {
+  const pathStr = shaToPath[sha256] || '';
+  if (!pathStr) { alert('No path for this file'); return; }
+  const flag = auditStatus[pathStr];
+  const history = getAuditHistory(pathStr);
+
+  document.getElementById('modalTitle').textContent = 'Audit: ' + pathStr.split('/').pop();
+  let body = '';
+
+  // Status banner
+  if (flag === 'changed') {
+    body += `<div style="padding:10px;background:#f8514922;border:1px solid #f8514944;border-radius:6px;margin-bottom:14px;color:#f85149;font-weight:600">
+      Content has changed since last snapshot</div>`;
+  } else if (flag === 'new') {
+    body += `<div style="padding:10px;background:#58a6ff22;border:1px solid #58a6ff44;border-radius:6px;margin-bottom:14px;color:#58a6ff;font-weight:600">
+      New file (not in last snapshot)</div>`;
+  }
+
+  // Path info
+  body += `<dl class="detail">
+    <dt>Path:</dt><dd style="color:#58a6ff">${esc(pathStr)}</dd><br>
+    <dt>Current:</dt><dd style="font-family:monospace;font-size:11px">${esc(sha256)}</dd><br>
+    <dt>Snapshots:</dt><dd style="color:#8b949e">${history.length} data points (kind 5128)</dd>
+  </dl>`;
+
+  // Version history
+  if (history.length > 0) {
+    body += `<h3 style="font-size:13px;margin-top:16px;margin-bottom:8px;color:#8b949e">Version History (${history.length} snapshots)</h3>`;
+    body += `<table style="width:100%;border-collapse:collapse">
+      <tr style="border-bottom:1px solid #30363d"><th style="text-align:left;padding:4px 8px;font-size:11px;color:#8b949e">Date</th><th style="text-align:left;padding:4px 8px;font-size:11px;color:#8b949e">SHA-256</th><th style="text-align:left;padding:4px 8px;font-size:11px;color:#8b949e">Status</th><th style="padding:4px 8px"></th></tr>`;
+
+    // Show in reverse chronological order
+    for (let i = history.length - 1; i >= 0; i--) {
+      const entry = history[i];
+      const isCurrent = entry.sha256 === sha256;
+      const prevEntry = i > 0 ? history[i - 1] : null;
+      const isChanged = prevEntry && prevEntry.sha256 !== entry.sha256;
+
+      body += `<tr style="border-bottom:1px solid #21262d;${isChanged ? 'background:#f8514908' : ''}">
+        <td style="padding:6px 8px;font-size:12px;color:#8b949e">${fmtDate(entry.timestamp)}</td>
+        <td style="padding:6px 8px;font-family:monospace;font-size:11px;color:${isCurrent ? '#3fb950' : '#c9d1d9'}">${entry.sha256.slice(0, 16)}...${isChanged ? ' <span style="color:#f85149">&#9888; changed</span>' : ''}</td>
+        <td style="padding:6px 8px;font-size:12px">${isCurrent ? '<span style="color:#3fb950">current</span>' : ''}</td>
+        <td style="padding:6px 8px">${!isCurrent && entry.sha256 ? `<button class="btn-sm" style="font-size:11px" onclick="viewHashVersion('${entry.sha256}')">View</button>` : ''}</td>
+      </tr>`;
+    }
+    body += '</table>';
+  } else {
+    body += `<p style="color:#6e7681;font-size:13px;margin-top:12px">No audit history for this path.</p>`;
+  }
+
+  document.getElementById('modalBody').innerHTML = body;
+  document.getElementById('modalFooter').innerHTML = `<button class="btn-sm" onclick="closeModal('detailModal')">Close</button>`;
+  openModal('detailModal');
+}
+
+/** View a blob by its SHA-256 hash (past version) */
+function viewHashVersion(sha256) {
+  const blobUrl = `${serverUrl}/${sha256}`;
+  window.open(blobUrl, '_blank');
+}
+
+// =============================================
+// Nostr Relay Client (browser WebSocket)
+// =============================================
+
+// Relay functions imported from shared/relay.js: relaySubscribe, queryRelays, publishToRelays, filterRelays
+
+/** Fetch kind 0 profile and update header with avatar + name */
+async function fetchAndShowProfile() {
+  try {
+    const relays = userRelays.length > 0 ? userRelays : BOOTSTRAP_RELAYS;
+    const events = await queryRelays(relays, { kinds: [0], authors: [pubkey], limit: 1 }, 5000);
+    if (events.length > 0) {
+      const meta = JSON.parse(events[0].content || '{}');
+      if (meta.name || meta.display_name || meta.picture) {
+        const name = meta.display_name || meta.name || pubkey.slice(0, 12);
+        const img = meta.picture
+          ? `<img src="${meta.picture}" style="width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-right:6px" onerror="this.style.display='none'">`
+          : '';
+        headerInfo.innerHTML = `${img}<span style="color:#d29922">${name}</span>`;
+      }
+    }
+  } catch (e) {
+    // Non-fatal — keep showing hex pubkey
+  }
+}
+
+// queryRelays imported from shared/relay.js
+
+// =============================================
+// Tiered Search System
+// =============================================
+// Tier 1: Metadata-only (NIP-94 kind 1063) — CURRENT
+// Tier 2: Automated keyword/tag extraction — FUTURE
+// Tier 3: Full-text chunk indexing — FUTURE
+// Tier 4: Semantic vector search — FUTURE
+
+let fileIndex = []; // Local cache of kind 1063 events for search
+
+/**
+ * Tier 1: Generate a NIP-94 (kind 1063) file metadata event from a Blossom BlobDescriptor.
+ *
+ * @param {Object} blobDescriptor - Response from Blossom PUT /upload
+ * @param {File} file - Original File object from input
+ * @param {string} sha256 - Pre-computed SHA-256 hex of the file
+ * @returns {Object} Unsigned kind 1063 event template (needs signing via NIP-07)
+ */
+function generateFileMetadata(blobDescriptor, file, sha256) {
+  const tags = [
+    ['url', blobDescriptor.url || `${serverUrl}/${sha256}`],
+    ['x', sha256],
+    ['m', blobDescriptor.type || file.type || 'application/octet-stream'],
+  ];
+
+  // Optional tags
+  if (blobDescriptor.size || file.size) {
+    tags.push(['size', String(blobDescriptor.size || file.size)]);
+  }
+  if (file.name) {
+    tags.push(['alt', file.name]);
+  }
+  // Preserve original hash if server transformed the file
+  if (blobDescriptor.sha256 && blobDescriptor.sha256 !== sha256) {
+    tags.push(['ox', sha256]); // original hash differs from server's
+  }
+
+  return {
+    kind: 1063,
+    content: '', // Caption/description — Tier 2 can populate this
+    tags,
+  };
+}
+
+/**
+ * Content extraction pipeline — scaffolding for future tiers.
+ *
+ * Tier 2 will extract keywords/tags from file content.
+ * Tier 3 will chunk and index full text.
+ * Tier 4 will generate semantic embeddings.
+ *
+ * @param {File} file - The file to extract content from
+ * @param {string} sha256 - SHA-256 hash of the file
+ * @returns {Promise<Object>} Extracted data with future tier placeholders
+ */
+async function extractContentLevels(file, sha256) {
+  const result = {
+    // Tier 2: Automated keyword/tag extraction
+    // TODO: Parse file content to extract keywords
+    // - For text files: tokenize, remove stop words, extract top N keywords
+    // - For documents (PDF/DOCX): use text extraction lib, then keyword extraction
+    // - For images: use image recognition API or local model for tags
+    // - Output: array of t tags like ["t", "keyword1"], ["t", "keyword2"]
+    keywords: [],
+
+    // Tier 3: Full-text chunk indexing
+    // TODO: Split file content into searchable chunks
+    // - For text files: split by paragraphs or fixed-size chunks
+    // - For documents: extract full text, chunk it
+    // - Store chunks as separate index events or in a local index DB
+    // - Output: array of { chunk_text, chunk_index, position }
+    chunks: [],
+
+    // Tier 4: Semantic vector search
+    // TODO: Generate embedding vectors from file content
+    // - Use a local or remote embedding model (e.g., sentence-transformers)
+    // - Generate vector for the full document and/or per chunk
+    // - Store vectors for cosine similarity search
+    // - Output: Float32Array embedding vector
+    embedding: null,
+
+    // Tier 1 metadata (always available)
+    mimeType: file.type || 'application/octet-stream',
+    fileName: file.name,
+    fileSize: file.size,
+    sha256,
+  };
+
+  return result;
+}
+
+/**
+ * Full indexing pipeline: upload → extract → index → publish.
+ *
+ * @param {File} file - File to upload and index
+ * @param {string} destPath - Destination path on Blossom (e.g. "/public/report.pdf")
+ * @returns {Promise<Object>} { sha256, descriptor, metadataEvent }
+ */
+async function uploadAndIndex(file, destPath) {
+  // Step 1: Calculate SHA-256 hash
+  const arrayBuf = await file.arrayBuffer();
+  const hashBuf = await crypto.subtle.digest('SHA-256', arrayBuf);
+  const sha256 = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+  // Step 2: Upload to Blossom server
+  const token = await createAuthToken('upload', sha256);
+  const resp = await proxyFetch(`${serverUrl}/upload`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Nostr ${token}`,
+      'Content-Type': file.type || 'application/octet-stream',
+      'X-SHA-256': sha256,
+      'X-Content-Type': file.type || 'application/octet-stream',
+    },
+    body: arrayBuf,
+  });
+
+  if (!resp.ok) {
+    throw new Error(`Upload failed: ${resp.status} ${await resp.text()}`);
+  }
+  const descriptor = await resp.json();
+
+  // Step 3: Extract content (Tier 1 only — future tiers are placeholders)
+  const extracted = await extractContentLevels(file, sha256);
+
+  // Step 4: Build and publish NIP-94 metadata event
+  const metadataTemplate = generateFileMetadata(descriptor, file, sha256);
+
+  // Merge extracted keywords into tags (Tier 2 placeholder)
+  for (const kw of extracted.keywords) {
+    metadataTemplate.tags.push(['t', kw]);
+  }
+
+  // Add summary tag if content extraction produced text (Tier 3 placeholder)
+  if (extracted.chunks.length > 0) {
+    metadataTemplate.tags.push(['summary', extracted.chunks[0].chunk_text.slice(0, 280)]);
+  }
+
+  // Sign and publish to relays
+  if (nostrExt) {
+    const signed = await nostrExt.signEvent(metadataTemplate);
+    publishToRelays(userRelays, signed);
+    // Cache locally
+    fileIndex.push(signed);
+    return { sha256, descriptor, metadataEvent: signed };
+  }
+
+  return { sha256, descriptor, metadataEvent: metadataTemplate };
+}
+
+/**
+ * Fetch kind 1063 events for a pubkey from relays.
+ * Populates the local fileIndex for searching.
+ */
+async function fetchFileIndex() {
+  const events = await queryRelays(userRelays, {
+    kinds: [1063],
+    authors: [pubkey],
+    limit: 500,
+  }, 8000);
+  fileIndex = events;
+  return events;
+}
+
+/**
+ * Tier 1 Search: Filter NIP-94 events by query string.
+ * Matches against: filename (alt tag), url, MIME type, summary, hash.
+ *
+ * @param {string} query - Search query
+ * @param {Array} events - Kind 1063 events to search (defaults to fileIndex)
+ * @param {string} pathFilter - Optional path prefix filter
+ * @returns {Array} Matching events
+ */
+function searchFiles(query, events = null, pathFilter = '') {
+  const source = events || fileIndex;
+  if (!query || query.length < 1) return source;
+
+  const lower = query.toLowerCase();
+  return source.filter(evt => {
+    // Check all searchable tags
+    for (const tag of evt.tags) {
+      const val = (tag[1] || '').toLowerCase();
+      if (tag[0] === 'alt' && val.includes(lower)) return true;     // filename
+      if (tag[0] === 'url' && val.includes(lower)) return true;     // URL
+      if (tag[0] === 'm' && val.includes(lower)) return true;       // MIME type
+      if (tag[0] === 'x' && val.includes(lower)) return true;       // SHA-256 hash
+      if (tag[0] === 'summary' && val.includes(lower)) return true; // summary (Tier 3)
+      if (tag[0] === 't' && val.includes(lower)) return true;       // keyword (Tier 2)
+    }
+    // Check content (caption)
+    if ((evt.content || '').toLowerCase().includes(lower)) return true;
+    return false;
+  });
+}
+
+// =============================================
+// End Tiered Search System
+// =============================================
+
+// publishToRelays imported from shared/relay.js
+
+// =============================================
+// NIP-07 Auth (BUD-11 tokens)
+// =============================================
+/** Create a NIP-98 auth token (kind 27235) for Route96 servers */
+async function createNIP98Token(method, url, nonce = '') {
+  if (!nostrExt) throw new Error('No Nostr extension');
+  const template = {
+    kind: 27235,
+    created_at: Math.floor(Date.now() / 1000),
+    tags: [
+      ['u', url],
+      ['method', method],
+    ],
+    content: nonce || '',
+  };
+  const signed = await nostrExt.signEvent(template);
+  return btoa(JSON.stringify(signed));
+}
+
+async function createAuthToken(action, sha256) {
+  if (!nostrExt) throw new Error('No Nostr extension');
+  const tags = [['t', action], ['expiration', String(Math.floor(Date.now() / 1000) + 300)]];
+  if (sha256) tags.push(['x', sha256]);
+  const template = {
+    kind: 24242,
+    created_at: Math.floor(Date.now() / 1000),
+    tags,
+    content: `Blossom Explorer - ${action} - ${Date.now()}`
+  };
+  const signed = await nostrExt.signEvent(template);
+  return btoa(JSON.stringify(signed));
+}
+
+// Proxy fetch through Bun server to avoid CORS
+async function proxyFetch(targetUrl, opts = {}) {
+  const proxyUrl = `/api/proxy?target=${encodeURIComponent(targetUrl)}`;
+  return fetch(proxyUrl, opts);
+}
+
+// =============================================
+// Relay & Manifest Loading
+// =============================================
+
+/** Fetch the user's NIP-65 relay list (kind 10002) */
+async function fetchUserRelays() {
+  relayStatusEl.innerHTML = '<span class="dot loading"></span> Finding your relays...';
+
+  const events = await queryRelays(BOOTSTRAP_RELAYS, {
+    kinds: [10002],
+    authors: [pubkey],
+    limit: 1,
+  }, 6000);
+
+  if (events.length > 0 && events[0].tags) {
+    const rTags = events[0].tags.filter(t => t[0] === 'r' && t[1]);
+    userRelays = rTags.map(t => t[1]);
+  }
+
+  // Fallback to bootstrap relays if no NIP-65 list found
+  if (userRelays.length === 0) {
+    userRelays = [...BOOTSTRAP_RELAYS];
+  }
+
+  relayStatusEl.innerHTML = `<span class="dot ok"></span> ${userRelays.length} relays`;
+  return userRelays;
+}
+
+/** Fetch nsite manifest events (kind 15128 and 35128) */
+async function fetchManifests() {
+  relayStatusEl.innerHTML = '<span class="dot loading"></span> Loading site manifests...';
+
+  // Query both kinds in parallel
+  const [root, named] = await Promise.all([
+    queryRelays(userRelays, { kinds: [15128], authors: [pubkey], limit: 5 }, 6000),
+    queryRelays(userRelays, { kinds: [35128], authors: [pubkey], limit: 20 }, 6000),
+  ]);
+
+  const all = [...root, ...named];
+  // Pick the latest event as the active manifest
+  if (all.length > 0) {
+    all.sort((a, b) => b.created_at - a.created_at);
+    manifest = all[0];
+    manifestKind = manifest.kind;
+  } else {
+    manifest = null;
+  }
+
+  buildFileTree();
+  renderTree();
+  relayStatusEl.innerHTML = `<span class="dot ok"></span> ${userRelays.length} relays · ${Object.keys(pathToSha).length} paths`;
+}
+
+/** Build file tree from manifest's path tags */
+function buildFileTree() {
+  pathToSha = {};
+  shaToPath = {};
+  fileTree = {};
+
+  // Build set of SHA-256s that exist on current server (from /list)
+  const serverBlobSet = new Set(blobs.map(b => b.sha256));
+
+  // Build tree from manifest path tags
+  // In shared view (no /list access), trust manifest entries — blobs are served by sha256
+  if (manifest && manifest.tags) {
+    for (const tag of manifest.tags) {
+      if (tag[0] === 'path' && tag[1] && tag[2]) {
+        const path = tag[1];
+        const sha = tag[2];
+        // Skip paths whose blob doesn't exist on this server
+        // In owner view (blobs loaded from server), filter by server blobs
+        // In shared view (no /list access), trust manifest entries
+        if (!sharedView && blobs.length > 0 && !serverBlobSet.has(sha)) continue;
+        if (!sharedView && blobs.length === 0) continue; // owner view, empty server = empty tree
+        pathToSha[path] = sha;
+        shaToPath[sha] = path;
+
+        const parts = path.split('/').filter(Boolean);
+        let node = fileTree;
+        for (let i = 0; i < parts.length; i++) {
+          const part = parts[i];
+          if (!node[part]) node[part] = {};
+          if (i === parts.length - 1) {
+            node[part]._sha = sha;
+            node[part]._path = path;
+          }
+          node = node[part];
+        }
+      }
+    }
+  }
+
+  // Add pathless blobs to root of tree
+  for (const b of blobs) {
+    if (!shaToPath[b.sha256]) {
+      // Blob has no path — derive name from URL
+      const name = fname(b.url) || b.sha256.slice(0, 12);
+      // Avoid overwriting existing entries
+      if (!fileTree[name]) {
+        fileTree[name] = { _sha: b.sha256, _path: null };
+      } else if (!fileTree[name]._sha) {
+        fileTree[name]._sha = b.sha256;
+        fileTree[name]._path = null;
+      }
+    }
+  }
+}
+
+// =============================================
+// Sidebar: Tree Rendering
+// =============================================
+
+/** Get the worst audit status for any file under a folder path */
+function getFolderAuditStatus(folderPath) {
+  let worst = null;
+  for (const [path, status] of Object.entries(auditStatus)) {
+    if (path.startsWith(folderPath)) {
+      // 'changed' > 'new' > 'removed' priority
+      if (status === 'changed') return 'changed';
+      if (status === 'new' && worst !== 'changed') worst = 'new';
+      if (status === 'removed' && !worst) worst = 'removed';
+    }
+  }
+  return worst;
+}
+
+function renderTree() {
+  if (Object.keys(fileTree).length === 0) {
+    treeEl.innerHTML = '<div class="sidebar-empty">No site manifests found.<br>Upload files to create paths.</div>';
+    renderBreadcrumb();
+    return;
+  }
+
+  treeEl.innerHTML = renderTreeNode(fileTree, '/');
+  renderBreadcrumb();
+}
+
+/** Recursively render tree node. Shows full tree with expand/collapse. */
+function renderTreeNode(node, pathPrefix, depth = 0) {
+  const entries = Object.entries(node).filter(([k]) => !k.startsWith('_'));
+  if (entries.length === 0) return '';
+
+  // Separate folders (objects without _sha) from files (with _sha)
+  const folders = [];
+  const files = [];
+  for (const [name, child] of entries) {
+    if (child._sha) {
+      files.push({ name, sha: child._sha, path: child._path || (pathPrefix + name) });
+    } else {
+      const childKeys = Object.keys(child).filter(k => !k.startsWith('_'));
+      if (childKeys.length > 0) {
+        folders.push({ name, child });
+      }
+    }
+  }
+
+  folders.sort((a, b) => a.name.localeCompare(b.name));
+  files.sort((a, b) => a.name.localeCompare(b.name));
+
+  let html = '';
+  const indent = depth * 16;
+
+  // Folders
+  for (const f of folders) {
+    const folderPath = pathPrefix + f.name + '/';
+    const isExpanded = expandedDirs.has(folderPath);
+    const isActive = currentPath === folderPath;
+    const arrow = isExpanded ? '&#9660;' : '&#9654;';
+
+    // Check if any file under this folder has audit changes
+    const folderAudit = getFolderAuditStatus(folderPath);
+
+    html += `<div class="tree-item${isActive ? ' active' : ''}" style="padding-left:${14 + indent}px"
+      onclick="toggleDir('${folderPath}')">
+      <span class="icon folder" style="font-size:10px">${arrow}</span>
+      <span class="icon folder">&#128193;</span>
+      <span class="name folder">${esc(f.name)}</span>
+      ${folderAudit ? `<span class="audit-dot ${folderAudit}" title="${folderAudit}"></span>` : ''}
+      <div class="tree-actions">
+        <button class="tree-act-btn del" title="Delete folder" onclick="event.stopPropagation();deletePath('${folderPath}')">&#128465;</button>
+      </div>
+    </div>`;
+
+    // Render children if expanded
+    if (isExpanded) {
+      html += renderTreeNode(f.child, folderPath, depth + 1);
+    }
+  }
+
+  // Files
+  for (const fi of files) {
+    const blob = blobMap.get(fi.sha);
+    const icon = blob ? (isImg(blob.type) ? '&#128444;' : isVid(blob.type) ? '&#127909;' : isAud(blob.type) ? '&#127925;' : '&#128196;') : '&#128196;';
+    const auditFlag = fi.path ? auditStatus[fi.path] : null;
+    html += `<div class="tree-item" style="padding-left:${14 + indent + 22}px"
+      onclick="showDetailForSha('${fi.sha}')">
+      <span class="icon file">${icon}</span>
+      <span class="name">${esc(fi.name)}</span>
+      ${auditFlag ? `<span class="audit-dot ${auditFlag}" title="${auditFlag}"></span>` : ''}
+    </div>`;
+  }
+
+  return html;
+}
+
+/** Toggle a directory expanded/collapsed in sidebar */
+function toggleDir(path) {
+  if (expandedDirs.has(path)) {
+    expandedDirs.delete(path);
+  } else {
+    expandedDirs.add(path);
+  }
+  // Update current path and re-render without forcing expand
+  currentPath = path;
+  document.getElementById('uploadPathInput').value = currentPath === '/' ? '/' : currentPath;
+  renderTree();
+  applyFiltersInternal();
+}
+
+/** Render breadcrumb navigation */
+function renderBreadcrumb() {
+  const parts = currentPath.split('/').filter(Boolean);
+  let html = '<span class="crumb" onclick="navigateTo(\'/\')">/</span>';
+  let accumulated = '/';
+  for (const p of parts) {
+    accumulated += p + '/';
+    html += `<span class="sep">/</span><span class="crumb" onclick="navigateTo('${accumulated}')">${esc(p)}</span>`;
+  }
+  breadcrumbEl.innerHTML = html;
+}
+
+/** Navigate to a folder path in the tree */
+function navigateTo(path) {
+  // Normalize: ensure starts with /, ends with /
+  if (!path.startsWith('/')) path = '/' + path;
+  if (!path.endsWith('/') && path !== '/') path += '/';
+  currentPath = path;
+
+  // Auto-expand parent dirs
+  expandedDirs.add('/');
+  const parts = currentPath.split('/').filter(Boolean);
+  let accum = '/';
+  for (const p of parts) {
+    accum += p + '/';
+    expandedDirs.add(accum);
+  }
+
+  // Update upload path input
+  document.getElementById('uploadPathInput').value = currentPath === '/' ? '/' : currentPath;
+
+  renderTree();
+  // Also filter the blob view to show blobs relevant to this path
+  applyFiltersInternal();
+}
+
+// =============================================
+// Blob Operations with Paths
+// =============================================
+
+/** Download a blob by its sha256 (finds URL from blobs list) */
+function downloadBySha(sha) {
+  const blob = blobMap.get(sha);
+  if (blob && blob.url) window.open(blob.url);
+}
+
+/** Show detail modal for a sha256 (works for both tree and flat view) */
+function showDetailForSha(sha) {
+  const blob = blobMap.get(sha);
+  if (blob) {
+    showDetail(sha);
+  } else {
+    // Blob not in current list — check if it exists on server anyway
+    const path = shaToPath[sha] || 'unknown';
+    const downloadUrl = `${serverUrl}/${sha}`;
+    document.getElementById('modalTitle').textContent = path.split('/').pop();
+    document.getElementById('modalBody').innerHTML = `
+      <dl class="detail">
+        <dt>Fingerprint (SHA-256):</dt><dd style="font-family:monospace;font-size:11px;word-break:break-all">${sha}</dd><br>
+        <dt>Path:</dt><dd>${path}</dd><br>
+        <dt>Download:</dt><dd><a href="${downloadUrl}" target="_blank" style="color:#58a6ff">${downloadUrl}</a></dd><br>
+        <dt>Status:</dt><dd id="blobCheckStatus" style="color:#d29922">Checking if blob exists on server...</dd>
+      </dl>`;
+    document.getElementById('modalFooter').innerHTML = `
+      <button class="btn-sm" onclick="closeModal('detailModal')">Close</button>`;
+    openModal('detailModal');
+
+    // HEAD check to see if blob is actually available
+    proxyFetch(downloadUrl, { method: 'HEAD' }).then(resp => {
+      const el = document.getElementById('blobCheckStatus');
+      const contentType = resp.headers.get('content-type') || '';
+      if (el) {
+        if (resp.ok) {
+          const size = resp.headers.get('content-length');
+          el.style.color = '#3fb950';
+          el.textContent = `Available on server${size ? ` (${formatBytes(parseInt(size))})` : ''}${contentType ? ` · ${contentType}` : ''}`;
+        } else {
+          el.style.color = '#f85149';
+          el.textContent = `Not found on server (${resp.status})`;
+        }
+      }
+      // Fetch text content for preview
+      if (resp.ok && isText(contentType)) {
+        proxyFetch(downloadUrl).then(r => r.text()).then(text => {
+          const dl = document.querySelector('#modalBody dl.detail');
+          if (dl) {
+            const preview = document.createElement('div');
+            preview.innerHTML = `<dt style="margin-top:10px">Preview:</dt><dd><pre class="text-preview" style="background:#161b22;border:1px solid #30363d;border-radius:6px;padding:12px;max-height:300px;overflow:auto;font-size:13px;line-height:1.5;color:#c9d1d9;white-space:pre-wrap;word-break:break-word;margin:0">${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre></dd>`;
+            dl.appendChild(preview);
+          }
+        }).catch(() => {});
+      }
+    }).catch(() => {
+      const el = document.getElementById('blobCheckStatus');
+      if (el) { el.style.color = '#f85149'; el.textContent = 'Could not reach server'; }
+    });
+  }
+}
+
+/** Rename a file by updating its path tag in the manifest */
+async function renameFile(sha256) {
+  const oldPath = shaToPath[sha256];
+  if (!oldPath) { alert('No path to rename'); return; }
+  const oldName = oldPath.split('/').pop();
+  const newName = prompt('New filename:', oldName);
+  if (!newName || newName === oldName) return;
+
+  // Build new path: replace last segment
+  const dir = oldPath.substring(0, oldPath.lastIndexOf('/'));
+  const newPath = dir + '/' + newName;
+
+  try {
+    const newTags = manifest.tags.map(t => {
+      if (t[0] === 'path' && t[1] === oldPath) return ['path', newPath, t[2]];
+      return t;
+    });
+
+    const template = {
+      kind: manifestKind,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: newTags,
+      content: manifest.content || '',
+    };
+    const signed = await nostrExt.signEvent(template);
+    publishToRelays(userRelays, signed);
+
+    manifest = signed;
+    buildFileTree();
+    renderTree();
+    applyFiltersInternal();
+    closeModal('detailModal');
+  } catch (e) {
+    alert('Rename failed: ' + e.message);
+  }
+}
+
+/** Remove a path from the manifest (keep blob on Blossom) */
+async function removePath(path) {
+  if (!manifest) { alert('No manifest to update'); return; }
+  if (!confirm(`Remove ${path} from site? (blob stays on Blossom)`)) return;
+
+  try {
+    // Build new tags: remove the matching path tag
+    const newTags = manifest.tags.filter(t => !(t[0] === 'path' && t[1] === path));
+
+    // Sign updated manifest
+    const template = {
+      kind: manifestKind,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: newTags,
+      content: manifest.content || '',
+    };
+    const signed = await nostrExt.signEvent(template);
+
+    // Publish to relays
+    publishToRelays(userRelays, signed);
+
+    // Update local state
+    manifest = signed;
+    buildFileTree();
+    renderTree();
+  } catch (e) {
+    alert('Failed to remove path: ' + e.message);
+  }
+}
+
+/** Delete a folder: removes all path tags under that prefix */
+async function deletePath(folderPath) {
+  if (!manifest) { alert('No manifest to update'); return; }
+  // Normalize
+  if (!folderPath.startsWith('/')) folderPath = '/' + folderPath;
+  if (!folderPath.endsWith('/')) folderPath += '/';
+
+  if (!confirm(`Delete all files under ${folderPath}?`)) return;
+
+  try {
+    const newTags = manifest.tags.filter(t => {
+      if (t[0] !== 'path' || !t[1]) return true;
+      // Keep paths that don't start with the folder prefix
+      return !t[1].startsWith(folderPath) && t[1] !== folderPath.slice(0, -1);
+    });
+
+    const template = {
+      kind: manifestKind,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: newTags,
+      content: manifest.content || '',
+    };
+    const signed = await nostrExt.signEvent(template);
+    publishToRelays(userRelays, signed);
+
+    manifest = signed;
+    buildFileTree();
+
+    // If we were in the deleted folder, navigate to parent
+    if (currentPath.startsWith(folderPath)) {
+      const parentParts = folderPath.split('/').filter(Boolean);
+      parentParts.pop();
+      navigateTo('/' + parentParts.join('/') + (parentParts.length > 0 ? '/' : ''));
+    }
+    renderTree();
+  } catch (e) {
+    alert('Failed to delete folder: ' + e.message);
+  }
+}
+
+/** Create a new folder in the manifest */
+async function createFolder(folderName) {
+  if (!folderName || folderName.includes('/')) { alert('Invalid folder name'); return; }
+
+  const folderPath = currentPath + folderName;
+
+  // To create a folder in nsite, we just need to add a placeholder path
+  // Use a .gitkeep-style marker or just add the folder path to the manifest
+  // Option: we don't actually need a blob for a folder - just ensure the path prefix exists
+  // But nsite path tags require a sha256. We'll use an empty placeholder.
+  // The folder will appear when files are added to it.
+  // For now, just navigate into the "empty" folder.
+  navigateTo(folderPath);
+}
+
+// =============================================
+// Upload with Path Support
+// =============================================
+
+async function uploadFile(file, destPath) {
+  const id = Math.random().toString(36).slice(2, 8);
+  addUploadItem(id, file.name, 0);
+
+  try {
+    // 1. Read file as ArrayBuffer
+    const arrayBuf = await file.arrayBuffer();
+    updateUploadItem(id, file.name, 0.1, 'reading');
+
+    // 2. Compute SHA-256
+    const hashBuf = await crypto.subtle.digest('SHA-256', arrayBuf);
+    const sha256 = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    updateUploadItem(id, file.name, 0.3, 'hashing');
+
+    // 3. Create auth token
+    const token = await createAuthToken('upload', sha256);
+    updateUploadItem(id, file.name, 0.4, 'authenticating');
+
+    // 4. Upload via proxy (BUD-02: PUT /upload)
+    let resp = await proxyFetch(`${serverUrl}/upload`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Nostr ${token}`,
+        'Content-Type': file.type || 'application/octet-stream',
+        'X-SHA-256': sha256,
+        'X-Content-Type': file.type || 'application/octet-stream',
+      },
+      body: arrayBuf,
+    });
+
+    // Retry on transient errors (502/503)
+    for (let retry = 0; retry < 3 && (resp.status === 502 || resp.status === 503); retry++) {
+      updateUploadItem(id, file.name, 0.5, `retrying (${resp.status})...`);
+      await new Promise(r => setTimeout(r, 1000 * (retry + 1)));
+      // Re-create auth token (previous one may be stale)
+      const retryToken = await createAuthToken('upload', sha256);
+      resp = await proxyFetch(`${serverUrl}/upload`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Nostr ${retryToken}`,
+          'Content-Type': file.type || 'application/octet-stream',
+          'X-SHA-256': sha256,
+          'X-Content-Type': file.type || 'application/octet-stream',
+        },
+        body: arrayBuf,
+      });
+    }
+
+    updateUploadItem(id, file.name, 0.8, 'uploading');
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error(`[upload] FAILED ${resp.status}: ${errText}`);
+      console.error(`[upload] Auth token used: ${token.slice(0, 40)}...`);
+      updateUploadItem(id, file.name, 1, `failed (${resp.status}): ${errText}`, true);
+      return;
+    }
+
+    const descriptor = await resp.json();
+    updateUploadItem(id, file.name, 0.9, 'updating manifest...');
+
+    // 5. Update manifest with path tag if destPath is set
+    // Always add path to manifest using the file's name
+    if (!destPath || destPath === '/') {
+      await addPathToManifest('/' + file.name, sha256);
+    } else {
+      const basePath = destPath.endsWith('/') ? destPath : destPath + '/';
+      await addPathToManifest(basePath + file.name, sha256);
+    }
+
+    updateUploadItem(id, file.name, 0.95, 'indexing...');
+
+    // 6. Generate and publish NIP-94 metadata event
+    try {
+      const metaTemplate = generateFileMetadata(descriptor, file, sha256);
+      const extracted = await extractContentLevels(file, sha256);
+      // Merge Tier 2 keywords when available
+      for (const kw of extracted.keywords) {
+        metaTemplate.tags.push(['t', kw]);
+      }
+      if (extracted.chunks.length > 0) {
+        metaTemplate.tags.push(['summary', extracted.chunks[0].chunk_text.slice(0, 280)]);
+      }
+      const signed = await nostrExt.signEvent(metaTemplate);
+      publishToRelays(userRelays, signed);
+      fileIndex.push(signed);
+    } catch (e) {
+      console.warn('NIP-94 indexing failed (non-fatal):', e.message);
+    }
+
+    updateUploadItem(id, file.name, 1, `done: ${descriptor.url}`);
+
+    // Refresh
+    await fetchBlobs(currentCursor);
+  } catch (e) {
+    updateUploadItem(id, file.name, 1, `error: ${e.message}`, true);
+  }
+}
+
+/** Add a path tag to the manifest and publish */
+async function addPathToManifest(path, sha256) {
+  // Ensure path starts with /
+  if (!path.startsWith('/')) path = '/' + path;
+
+  let tags;
+  if (manifest) {
+    // Remove existing path tag for same path (update), then add new one
+    tags = manifest.tags.filter(t => !(t[0] === 'path' && t[1] === path));
+    tags.push(['path', path, sha256]);
+  } else {
+    // Create new manifest
+    tags = [
+      ['path', path, sha256],
+      ['server', serverUrl],
+    ];
+  }
+
+  const template = {
+    kind: manifestKind,
+    created_at: Math.floor(Date.now() / 1000),
+    tags,
+    content: manifest ? (manifest.content || '') : 'Blossom Explorer site',
+  };
+
+  const signed = await nostrExt.signEvent(template);
+  publishToRelays(userRelays, signed);
+
+  // Update local state immediately
+  manifest = signed;
+  buildFileTree();
+  renderTree();
+}
+
+// =============================================
+// Login
+// =============================================
+async function init() {
+  // Wait briefly for NIP-07 extension to inject window.nostr
+  for (let i = 0; i < 10; i++) {
+    if (typeof window.nostr !== 'undefined') break;
+    await new Promise(r => setTimeout(r, 200));
+  }
+
+  // Check for shared view: /npub1...
+  const path = location.pathname;
+  const npubMatch = path.match(/^\/(npub1[a-z0-9]+)$/);
+  if (npubMatch) {
+    const hex = decodeNpub(npubMatch[1]);
+    if (hex) {
+      sharedView = true;
+      pubkey = hex; // target pubkey (who we're viewing)
+      // Use saved server URL or default
+      const saved = localStorage.getItem('blossom_explorer');
+      if (saved) {
+        try { serverUrl = JSON.parse(saved).serverUrl; } catch {}
+      }
+      if (!serverUrl) serverUrl = 'https://blossom.primal.net';
+      currentPath = '/';
+      expandedDirs = new Set(['/']);
+
+      // Shared view: try to load without login
+      // If Blossom server requires auth, user can login later
+      await showSharedView();
+      return;
+    }
+  }
+
+  // Normal login flow
+  const saved = localStorage.getItem('blossom_explorer');
+  if (saved) {
+    try {
+      const s = JSON.parse(saved);
+      if (s.pubkey && s.serverUrl) {
+        pubkey = s.pubkey;
+        serverUrl = s.serverUrl;
+        currentPath = '/';
+        expandedDirs = new Set(['/']);
+        if (typeof window.nostr !== 'undefined') {
+          nostrExt = window.nostr;
+          await showApp();
+          return;
+        }
+      }
+    } catch {}
+  }
+  showLogin();
+}
+
+function showLogin() {
+  loginScreen.style.display = 'flex';
+  app.style.display = 'none';
+
+  if (typeof window.nostr !== 'undefined') {
+    nostrExt = window.nostr;
+    extStatus.textContent = 'Nostr login extension detected';
+    extStatus.classList.add('ok');
+    loginBtn.disabled = false;
+  } else {
+    extStatus.textContent = 'No Nostr extension found. Install Alby, nos2x, or similar.';
+    extStatus.classList.remove('ok');
+    loginBtn.disabled = true;
+  }
+}
+
+async function showApp() {
+  loginScreen.style.display = 'none';
+  app.style.display = 'block';
+  serverDisplay.value = serverUrl;
+  headerInfo.textContent = `${pubkey.slice(0, 16)}...`;
+
+  // Auditor npub — default empty, not persisted
+  auditorNpub = '';
+  const auditorInput = document.getElementById('auditorNpubInput');
+  if (auditorInput) auditorInput.value = '';
+
+  // Load relay list and manifests, then fetch blobs — all in parallel
+  await fetchUserRelays();
+
+  // Fetch and display user profile (kind 0) — name + avatar
+  await fetchAndShowProfile();
+  // Fetch manifests, blobs, and file index in parallel
+  await Promise.all([
+    fetchManifests(),
+    fetchBlobs(''),
+    fetchFileIndex(),
+  ]);
+  // Rebuild tree now that blobs are loaded (pathless blobs added to tree)
+  buildFileTree();
+  await loadAuditStatus();
+  renderTree();
+}
+
+/** Shared view — read-only, no auth needed */
+async function showSharedView() {
+  loginScreen.style.display = 'none';
+  app.style.display = 'block';
+
+  // Update header to show it's a shared view
+  const npub = location.pathname.slice(1); // /npub1...
+  document.querySelector('.header h1').textContent = `Blossom Explorer — Shared View`;
+  headerInfo.innerHTML = `<span style="color:#58a6ff">${npub.slice(0, 20)}...</span>`;
+  serverDisplay.value = serverUrl;
+  serverDisplay.disabled = false;
+
+  // Auditor npub — default empty, not persisted
+  auditorNpub = '';
+  const auditorInput = document.getElementById('auditorNpubInput');
+  if (auditorInput) {
+    auditorInput.style.display = '';
+    auditorInput.value = '';
+    auditorInput.placeholder = 'auditor npub (optional)';
+  }
+
+  // Hide write controls in toolbar
+  const uploadBtn = document.querySelector('.btn-sm.upload');
+  const syncBtn = document.getElementById('syncFolderBtn');
+  const newFolderBtn = document.getElementById('newFolderBtn');
+  const mirrorBtn = document.getElementById('mirrorBtn');
+  if (uploadBtn) uploadBtn.style.display = 'none';
+  if (syncBtn) syncBtn.style.display = 'none';
+  if (newFolderBtn) newFolderBtn.style.display = 'none';
+  if (mirrorBtn) mirrorBtn.style.display = 'none';
+
+  // Load relay list and manifests (no auth needed — relay queries)
+  await fetchUserRelays();
+  await fetchManifests();
+
+  // Shared view: don't call /list — we can't list another user's blobs
+  // Tree is built from manifest path tags fetched from relays
+  // Blob metadata comes from NIP-94 events (kind 1063)
+  blobs = []; rebuildBlobMap(); // no /list access for other users
+  await fetchFileIndex();
+
+  // Build tree from manifest + blob data
+  buildFileTree();
+  await loadAuditStatus();
+
+  // Show audit summary indicator in shared view
+  const changedCount = Object.values(auditStatus).filter(v => v === 'changed').length;
+  const newCount = Object.values(auditStatus).filter(v => v === 'new').length;
+  const removedCount = Object.values(auditStatus).filter(v => v === 'removed').length;
+  const totalChanges = changedCount + newCount + removedCount;
+  if (totalChanges > 0) {
+    const snapshotter = auditSnapshots.length > 0 ? auditSnapshots[auditSnapshots.length - 1].snapshotter : '';
+    const snapshotterNpub = snapshotter ? encodeNpub(snapshotter) : '';
+    headerInfo.innerHTML += ` <span style="font-size:11px;color:#8b949e;margin-left:8px">Audit: <span style="color:#f85149">${changedCount} changed</span> · <span style="color:#58a6ff">${newCount} new</span> · <span style="color:#d29922">${removedCount} removed</span>${snapshotterNpub ? ` · by <span style="color:#58a6ff">${snapshotterNpub.slice(0,12)}...</span>` : ''}</span>`;
+  }
+
+  renderTree();
+  applyFiltersInternal();
+}
+
+// =============================================
+// Server URL change
+// =============================================
+serverDisplay.addEventListener('change', async () => {
+  let newUrl = serverDisplay.value.trim().replace(/\/+$/, '');
+  if (newUrl && !/^https?:\/\//i.test(newUrl)) newUrl = 'https://' + newUrl;
+  if (newUrl && newUrl !== serverUrl) {
+    serverUrl = newUrl;
+    serverDisplay.value = serverUrl;
+    localStorage.setItem('blossom_explorer', JSON.stringify({ pubkey, serverUrl }));
+    // Reset all state for new server
+    blobs = []; rebuildBlobMap();
+    filteredBlobs = [];
+    fileTree = {};
+    pathToSha = {};
+    shaToPath = {};
+    manifests = [];
+    manifest = null;
+    auditStatus = {};
+    auditSnapshots = [];
+    cursorStack = [];
+    currentCursor = '';
+    nextCursor = '';
+    // Only fetch blobs from new server — manifests are server-specific
+    await fetchBlobs('');
+    buildFileTree();
+    renderTree();
+    applyFiltersInternal();
+  }
+});
+
+// =============================================
+// Auditor npub config
+function applyAuditorNpub(val) {
+  val = val.trim();
+  if (val.startsWith('npub1')) {
+    const hex = decodeNpub(val);
+    if (hex) {
+      auditorNpub = hex;
+    } else {
+      alert('Invalid npub');
+      return;
+    }
+  } else {
+    auditorNpub = val;
+  }
+  loadAuditStatus().then(() => { renderTree(); applyFiltersInternal(); });
+}
+const auditorInputEl = document.getElementById('auditorNpubInput');
+auditorInputEl.addEventListener('change', (e) => applyAuditorNpub(e.target.value));
+auditorInputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); applyAuditorNpub(e.target.value); } });
+
+// =============================================
+// Public blob listing (no auth required)
+// =============================================
+async function fetchPublicBlobs() {
+  content.innerHTML = '<div class="loading"><div class="spinner"></div><br><br>Loading blobs...</div>';
+  pagination.style.display = 'none';
+  try {
+    const resp = await proxyFetch(`${serverUrl}/list/${pubkey}?limit=50`);
+    if (!resp.ok) {
+      const text = await resp.text();
+      content.innerHTML = `<div class="empty">Error ${resp.status}: ${esc(text)}</div>`;
+      return;
+    }
+    blobs = await resp.json(); rebuildBlobMap();
+    currentCursor = '';
+    nextCursor = blobs.length === 50 ? blobs[blobs.length - 1]?.sha256 : '';
+    applyFiltersInternal();
+  } catch (e) {
+    content.innerHTML = `<div class="empty">Failed: ${esc(e.message)}</div>`;
+  }
+}
+
+// =============================================
+// Blossom API (flat blob list)
+// =============================================
+async function fetchBlobs(cursor) {
+  content.innerHTML = '<div class="loading"><div class="spinner"></div><br><br>Loading blobs...</div>';
+  pagination.style.display = 'none';
+
+  try {
+    let targetUrl = `${serverUrl}/list/${pubkey}?limit=50`;
+    if (cursor) targetUrl += `&cursor=${cursor}`;
+
+    // Try without auth first, with retry for transient 503/502 errors
+    let resp = await proxyFetch(targetUrl);
+    for (let retry = 0; retry < 3 && (resp.status === 502 || resp.status === 503); retry++) {
+      await new Promise(r => setTimeout(r, 1000 * (retry + 1)));
+      resp = await proxyFetch(targetUrl);
+    }
+
+    // If auth required, retry with auth token
+    if (!resp.ok) {
+      if (nostrExt && (resp.status === 401 || resp.status === 400)) {
+        const token = await createAuthToken('list');
+        resp = await proxyFetch(targetUrl, {
+          headers: { 'Authorization': `Nostr ${token}` },
+        });
+      }
+    }
+
+    // Parse response body
+    if (resp.ok) {
+      const data = await resp.json();
+      // If we got an empty list and have auth, try with auth to see if there are hidden blobs
+      if (Array.isArray(data) && data.length === 0 && nostrExt) {
+        try {
+          const token = await createAuthToken('list');
+          const authResp = await proxyFetch(targetUrl, {
+            headers: { 'Authorization': `Nostr ${token}` },
+          });
+          if (authResp.ok) {
+            const authData = await authResp.json();
+            if (Array.isArray(authData) && authData.length > 0) {
+              blobs = authData; rebuildBlobMap();
+              currentCursor = cursor || '';
+              nextCursor = blobs.length === 50 ? blobs[blobs.length - 1]?.sha256 : '';
+              applyFiltersInternal();
+              return;
+            }
+          }
+        } catch { /* auth retry failed silently */ }
+      }
+      blobs = data; rebuildBlobMap();
+      currentCursor = cursor || '';
+      nextCursor = blobs.length === 50 ? blobs[blobs.length - 1]?.sha256 : '';
+      applyFiltersInternal();
+      return;
+    }
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      content.innerHTML = `<div class="empty">Error ${resp.status}: ${esc(text)}</div>`;
+      return;
+    }
+
+    blobs = await resp.json(); rebuildBlobMap();
+    currentCursor = cursor || '';
+    nextCursor = blobs.length === 50 ? blobs[blobs.length - 1]?.sha256 : '';
+    applyFiltersInternal();
+  } catch (e) {
+    content.innerHTML = `<div class="empty">Failed: ${esc(e.message)}</div>`;
+  }
+}
+
+async function deleteBlob(sha256) {
+  try {
+    const token = await createAuthToken('delete', sha256);
+    const resp = await proxyFetch(`${serverUrl}/${sha256}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Nostr ${token}` },
+    });
+    if (!resp.ok) { alert('Delete failed: ' + await resp.text()); return; }
+    closeModal('deleteModal');
+    await fetchBlobs(currentCursor);
+  } catch (e) {
+    alert('Delete failed: ' + e.message);
+  }
+}
+
+// =============================================
+// Upload Queue
+// =============================================
+function addUploadItem(id, name, pct) {
+  uploadProgressEl.style.display = 'block';
+  const div = document.createElement('div');
+  div.className = 'upload-item';
+  div.id = `upload-${id}`;
+  div.innerHTML = `<span style="min-width:180px">${name}</span><div class="progress-bar"><div class="fill" style="width:${pct*100}%"></div></div><span class="upload-status" style="font-size:11px;color:#8b949e">queued</span>`;
+  uploadProgressEl.prepend(div);
+}
+
+function updateUploadItem(id, name, pct, status, err = false) {
+  const el = document.getElementById(`upload-${id}`);
+  if (!el) return;
+  el.querySelector('.fill').style.width = `${pct * 100}%`;
+  if (err) el.querySelector('.fill').classList.add('err');
+  if (status) {
+    const s = el.querySelector('.upload-status');
+    s.textContent = status;
+    if (err) s.style.color = '#f85149';
+    else if (pct >= 1) s.style.color = '#3fb950';
+  }
+}
+
+async function processUploadQueue() {
+  if (uploading) return;
+  uploading = true;
+  const destPath = document.getElementById('uploadPathInput').value.trim() || '/';
+  while (uploadQueue.length > 0) {
+    const item = uploadQueue.shift();
+    await uploadFile(item.file, item.preservePath ? item.relativePath : destPath);
+  }
+  uploading = false;
+}
+
+function handleFiles(fileList) {
+  if (!fileList || fileList.length === 0) return;
+  for (const f of fileList) {
+    uploadQueue.push({ file: f, preservePath: false });
+  }
+  processUploadQueue();
+}
+
+/** Handle directory upload: preserve relative paths */
+function handleDirFiles(fileList) {
+  if (!fileList || fileList.length === 0) return;
+  const destPath = document.getElementById('uploadPathInput').value.trim() || '/';
+  for (const f of fileList) {
+    // webkitRelativePath gives us "folder/subfolder/file.txt" — strip root folder
+    const raw = f.webkitRelativePath || f.name;
+    const slashIdx = raw.indexOf('/');
+    const relativePath = slashIdx >= 0 ? raw.slice(slashIdx + 1) : raw;
+    uploadQueue.push({
+      file: f,
+      preservePath: true,
+      relativePath: destPath + relativePath,
+    });
+  }
+  processUploadQueue();
+}
+
+// =============================================
+// Folder Sync
+// =============================================
+
+/**
+ * Sync a local folder to the current Blossom server path.
+ * - Hashes each local file
+ * - Skips files already on server with same sha256
+ * - Uploads new/changed files
+ * - Optionally removes server files not present locally
+ */
+async function syncFolder(fileList) {
+  if (!fileList || fileList.length === 0) return;
+
+  const destBase = document.getElementById('uploadPathInput').value.trim() || '/';
+  const basePath = destBase.endsWith('/') ? destBase : destBase + '/';
+
+  const localFiles = new Map();
+  const syncId = 'sync_' + Math.random().toString(36).slice(2, 6);
+  let uploaded = 0, skipped = 0, removed = 0, failed = 0;
+
+  uploadProgressEl.style.display = 'block';
+  addUploadItem(syncId + '_status', `Syncing ${fileList.length} files...`, 0);
+
+  // Check crypto.subtle availability (requires secure context)
+  if (!crypto || !crypto.subtle) {
+    updateUploadItem(syncId + '_status', 'crypto.subtle unavailable — need HTTPS or localhost', 1, 'no crypto', true);
+    return;
+  }
+
+  // Phase 1: Hash all local files
+  const hashErrors = [];
+  for (const f of fileList) {
+    const raw = f.webkitRelativePath || f.name;
+    const slashIdx = raw.indexOf('/');
+    const rel = slashIdx >= 0 ? raw.slice(slashIdx + 1) : raw;
+    const fullPath = basePath + rel;
+    try {
+      const buf = await f.arrayBuffer();
+      const hashBuf = await crypto.subtle.digest('SHA-256', buf);
+      const sha256 = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+      localFiles.set(fullPath, { file: f, sha256 });
+    } catch (e) {
+      failed++;
+      hashErrors.push(`${f.name}: ${e.message || e}`);
+    }
+  }
+
+  if (failed === fileList.length) {
+    const errMsg = hashErrors.join('; ') || 'unknown error';
+    updateUploadItem(syncId + '_status', `Hashing failed: ${errMsg}`, 1, 'hashing failed', true);
+    console.error('Sync hash errors:', hashErrors);
+    return;
+  }
+
+  // Phase 2: Determine what needs upload vs what's unchanged
+  const localPaths = new Set(localFiles.keys());
+  const toUpload = [];
+  for (const [path, { file, sha256 }] of localFiles) {
+    if (pathToSha[path] === sha256) {
+      skipped++;
+    } else {
+      toUpload.push({ path, file, sha256 });
+    }
+  }
+
+  // Paths to remove (on server under basePath but not in local folder)
+  const toRemovePaths = new Set();
+  if (manifest && manifest.tags) {
+    for (const tag of manifest.tags) {
+      if (tag[0] === 'path' && tag[1] && tag[1].startsWith(basePath) && !localPaths.has(tag[1])) {
+        toRemovePaths.add(tag[1]);
+      }
+    }
+  }
+
+  updateUploadItem(syncId + '_status',
+    `${toUpload.length} to upload, ${skipped} unchanged, ${toRemovePaths.size} to remove`, 0.1);
+
+  // Phase 3: Upload blobs only (no manifest changes yet)
+  const uploadedPaths = []; // { path, sha256 } pairs for successful uploads
+  for (let i = 0; i < toUpload.length; i++) {
+    const { path, file, sha256 } = toUpload[i];
+    const itemId = syncId + '_' + i;
+    addUploadItem(itemId, path.split('/').pop(), (i / toUpload.length) * 0.8);
+
+    try {
+      const existingBlob = blobMap.get(sha256);
+
+      if (!existingBlob) {
+        const arrayBuf = await file.arrayBuffer();
+        const token = await createAuthToken('upload', sha256);
+        const resp = await proxyFetch(`${serverUrl}/upload`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Nostr ${token}`,
+            'Content-Type': file.type || 'application/octet-stream',
+            'X-SHA-256': sha256,
+            'X-Content-Type': file.type || 'application/octet-stream',
+          },
+          body: arrayBuf,
+        });
+
+        if (!resp.ok) {
+          updateUploadItem(itemId, path.split('/').pop(), 1, `upload failed: ${resp.status}`, true);
+          failed++;
+          continue;
+        }
+      }
+
+      uploadedPaths.push({ path, sha256 });
+      uploaded++;
+      updateUploadItem(itemId, path.split('/').pop(), 1, existingBlob ? 'linked' : 'uploaded');
+    } catch (e) {
+      updateUploadItem(itemId, path.split('/').pop(), 1, `error: ${e.message}`, true);
+      failed++;
+    }
+  }
+
+  // Phase 4: Single manifest update — add new paths + remove stale paths
+  const needsManifestUpdate = uploadedPaths.length > 0 || toRemovePaths.size > 0;
+  if (needsManifestUpdate) {
+    try {
+      // Start from current tags, remove stale paths, add new paths
+      let tags = manifest ? [...manifest.tags] : [['server', serverUrl]];
+
+      // Remove stale paths
+      if (toRemovePaths.size > 0) {
+        tags = tags.filter(t => !(t[0] === 'path' && toRemovePaths.has(t[1])));
+        removed = toRemovePaths.size;
+      }
+
+      // Add/replace new paths (remove old entry for same path if exists)
+      for (const { path, sha256 } of uploadedPaths) {
+        tags = tags.filter(t => !(t[0] === 'path' && t[1] === path));
+        tags.push(['path', path, sha256]);
+      }
+
+      const template = {
+        kind: manifestKind,
+        created_at: Math.floor(Date.now() / 1000),
+        tags,
+        content: manifest ? (manifest.content || '') : 'Blossom Explorer site',
+      };
+
+      updateUploadItem(syncId + '_status', 'Signing manifest update...', 0.9);
+      const signed = await nostrExt.signEvent(template);
+      publishToRelays(userRelays, signed);
+
+      manifest = signed;
+    } catch (e) {
+      updateUploadItem(syncId + '_status', `Manifest update failed: ${e.message}`, 1, 'manifest failed', true);
+      failed += uploadedPaths.length;
+      uploaded = 0;
+    }
+  }
+
+  // Done
+  const summary = `Sync done: ${uploaded} uploaded, ${skipped} unchanged, ${removed} removed${failed ? `, ${failed} failed` : ''}`;
+  updateUploadItem(syncId + '_status', summary, 1, summary);
+  await fetchBlobs(currentCursor);
+  buildFileTree();
+  renderTree();
+  applyFiltersInternal();
+  // Auto-hide progress after 5 seconds
+  setTimeout(() => { uploadProgressEl.style.display = 'none'; uploadProgressEl.innerHTML = ''; }, 5000);
+}
+
+// Hidden file input for sync (separate from upload inputs)
+const syncDirInput = document.createElement('input');
+syncDirInput.type = 'file';
+syncDirInput.webkitdirectory = true;
+syncDirInput.multiple = true;
+syncDirInput.style.display = 'none';
+document.body.appendChild(syncDirInput);
+
+document.getElementById('syncFolderBtn').addEventListener('click', () => {
+  syncDirInput.click();
+});
+
+// Pending sync files (set when folder selected, used when modal confirmed)
+let pendingSyncFiles = null;
+
+syncDirInput.addEventListener('change', (e) => {
+  const files = Array.from(e.target.files);
+  e.target.value = '';
+  if (files.length === 0) return;
+
+  pendingSyncFiles = files;
+
+  // Extract folder name from first file's relative path
+  const firstRel = files[0].webkitRelativePath || files[0].name;
+  const folderName = firstRel.split('/')[0] || 'folder';
+
+  document.getElementById('syncSourceName').textContent = `${folderName}/ (${files.length} files)`;
+  document.getElementById('syncTargetPath').value = currentPath || '/';
+  openModal('syncModal');
+  setTimeout(() => {
+    const input = document.getElementById('syncTargetPath');
+    input.focus();
+    // Select just the folder name part for easy editing
+    const lastSlash = input.value.lastIndexOf('/');
+    input.setSelectionRange(lastSlash + 1, input.value.length);
+  }, 100);
+});
+
+document.getElementById('confirmSyncBtn').addEventListener('click', () => {
+  if (!pendingSyncFiles) return;
+  const targetPath = document.getElementById('syncTargetPath').value.trim() || '/';
+  document.getElementById('uploadPathInput').value = targetPath;
+  closeModal('syncModal');
+  syncFolder(pendingSyncFiles);
+  pendingSyncFiles = null;
+});
+
+document.getElementById('syncTargetPath').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('confirmSyncBtn').click();
+});
+
+// =============================================
+// Filtering & Sorting
+// =============================================
+
+/** Run content search — fetches text files and searches their contents */
+async function runContentSearch(query, pathFilter) {
+  contentMatches = new Set();
+  const lowerQuery = query.toLowerCase();
+  if (contentSearchAbort) { contentSearchAbort.abort(); }
+  contentSearchAbort = new AbortController();
+  const signal = contentSearchAbort.signal;
+
+  const spinnerEl = document.getElementById('searchSpinner');
+  spinnerEl.style.display = 'inline';
+
+  // Only search text-compatible MIME types, max 100KB
+  const textTypes = ['text/', 'application/json', 'application/xml', 'application/yaml',
+    'application/javascript', 'application/x-javascript', 'application/csv',
+    'application/vnd.ms-excel'];
+
+  let candidates = blobs.filter(b => {
+    if (!b.type) return b.size < 100000;
+    return textTypes.some(t => b.type.startsWith(t)) && b.size < 100000;
+  });
+
+  // Filter by path if specified
+  if (pathFilter) {
+    candidates = candidates.filter(b => {
+      const p = shaToPath[b.sha256] || '';
+      return p.toLowerCase().startsWith(pathFilter.toLowerCase());
+    });
+  }
+
+  statsBar.textContent = `Searching content of ${candidates.length} files...`;
+
+  let searched = 0;
+  for (const blob of candidates) {
+    if (signal.aborted) { spinnerEl.style.display = 'none'; return; }
+    const url = blob.url || `${serverUrl}/${blob.sha256}`;
+    try {
+      const resp = await proxyFetch(url);
+      if (resp.ok) {
+        const text = await resp.text();
+        if (text.toLowerCase().includes(lowerQuery)) {
+          contentMatches.add(blob.sha256);
+        }
+      }
+    } catch { /* skip */ }
+    searched++;
+    if (searched % 5 === 0) {
+      statsBar.textContent = `Searched ${searched}/${candidates.length} files... (${contentMatches.size} matches)`;
+      applyFiltersInternal();
+    }
+  }
+
+  spinnerEl.style.display = 'none';
+  statsBar.textContent = `Content search done: ${contentMatches.size} matches in ${candidates.length} files`;
+  applyFiltersInternal();
+}
+
+/** Main applyFilters — triggered by Search button or Enter */
+function applyFilters() {
+  const search = document.getElementById('searchInput').value.trim();
+  const pathFilter = document.getElementById('searchPathInput').value.trim();
+
+  // Run content search in background if query is 2+ chars
+  if (search.length >= 2) {
+    runContentSearch(search, pathFilter);
+    // Also search NIP-94 index for metadata matches
+    const nip94Matches = searchFiles(search);
+    for (const evt of nip94Matches) {
+      const x = evt.tags.find(t => t[0] === 'x')?.[1];
+      if (x) contentMatches.add(x);
+    }
+  } else {
+    // Clear content matches
+    if (contentSearchAbort) { contentSearchAbort.abort(); contentSearchAbort = null; }
+    contentMatches = new Set();
+    document.getElementById('searchSpinner').style.display = 'none';
+  }
+  applyFiltersInternal();
+}
+function applyFiltersInternal() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const pathFilter = document.getElementById('searchPathInput').value.toLowerCase().trim();
+  const typeVal = document.getElementById('typeFilter').value;
+
+  const seen = new Set();
+  displayItems = [];
+
+  // Add path entries first (each path gets its own item even if same sha)
+  for (const [path, sha] of Object.entries(pathToSha)) {
+    // When searching, include all paths regardless of current directory
+    if (!search) {
+      if (currentPath === '/') {
+        const rest = path.startsWith('/') ? path.slice(1) : path;
+        if (rest.includes('/')) continue;
+      } else {
+        if (!path.startsWith(currentPath)) continue;
+        const rest = path.slice(currentPath.length);
+        if (rest.includes('/')) continue;
+      }
+    }
+
+    // Dedupe by sha256 when searching (avoid showing same file twice)
+    const key = search ? sha : sha + ':' + path;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const blob = blobMap.get(sha);
+    // Fallback: look up metadata from NIP-94 fileIndex (shared view has no /list)
+    const nip94 = !blob ? fileIndex.find(e => e.tags.some(t => t[0] === 'x' && t[1] === sha)) : null;
+    const nip94Tag = (name) => nip94?.tags.find(t => t[0] === name)?.[1];
+    const name = path.split('/').filter(Boolean).pop() || sha.slice(0, 12);
+
+    displayItems.push({
+      sha256: sha,
+      name,
+      path,
+      url: blob?.url || nip94Tag('url') || `${serverUrl}/${sha}`,
+      type: blob?.type || nip94Tag('m') || 'application/octet-stream',
+      size: blob?.size || (nip94Tag('size') ? parseInt(nip94Tag('size')) : 0),
+      uploaded: blob?.uploaded || (nip94?.created_at) || 0,
+    });
+  }
+
+  // Add pathless blobs (when searching or at root)
+  if (search || currentPath === '/') {
+    for (const b of blobs) {
+      if (shaToPath[b.sha256]) continue;
+      const key = b.sha256;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      displayItems.push({
+        sha256: b.sha256,
+        name: displayName(b.sha256, b.url),
+        path: null,
+        url: b.url,
+        type: b.type || 'application/octet-stream',
+        size: b.size || 0,
+        uploaded: b.uploaded || 0,
+      });
+    }
+  }
+
+  // Apply search/type/path filters
+  displayItems = displayItems.filter(item => {
+    if (typeVal && !item.type.startsWith(typeVal)) return false;
+    // Path filter
+    if (pathFilter && item.path && !item.path.toLowerCase().startsWith(pathFilter)) return false;
+    if (search) {
+      const nameOrPathMatch = item.sha256.includes(search) || item.name.toLowerCase().includes(search) || item.type.includes(search) || (item.path || '').toLowerCase().includes(search);
+      const contentMatch = contentMatches.has(item.sha256);
+      return nameOrPathMatch || contentMatch;
+    }
+    return true;
+  });
+
+  displayItems.sort((a, b) => {
+    let va = a[sortField], vb = b[sortField];
+    if (typeof va === 'string') { va = va.toLowerCase(); vb = (vb || '').toLowerCase(); }
+    return (va > vb ? 1 : va < vb ? -1 : 0) * sortDir;
+  });
+
+  statsBar.textContent = `Showing ${displayItems.length} items · ${Object.keys(pathToSha).length} paths · ${blobs.length} blobs`;
+  render();
+}
+
+function render() {
+  // Get subfolders at current path — hide when searching
+  const searchVal = document.getElementById('searchInput').value.trim();
+  const subFolders = searchVal ? [] : getSubFolders(currentPath);
+  const isSearching = document.getElementById('searchSpinner').style.display !== 'none';
+
+  // Show search spinner in content area when actively searching
+  if (isSearching && displayItems.length === 0 && subFolders.length === 0) {
+    content.innerHTML = '<div class="loading"><div class="spinner"></div><br><br>Searching file contents...</div>';
+    return;
+  }
+
+  if (displayItems.length === 0 && subFolders.length === 0) {
+    content.innerHTML = '<div class="empty">No blobs found. Drop files above to upload.</div>';
+  } else if (viewMode === 'grid') {
+    renderGrid(subFolders);
+  } else {
+    renderList(subFolders);
+  }
+
+  const hasMore = blobs.length === 50;
+  const hasPrev = cursorStack.length > 0;
+  pagination.style.display = (hasMore || hasPrev) ? 'flex' : 'none';
+  document.getElementById('prevBtn').disabled = !hasPrev;
+  document.getElementById('pageInfo').textContent = hasPrev ? `Page ${cursorStack.length + 1}` : 'Page 1';
+}
+
+/** Get subfolder names at a given path */
+function getSubFolders(path) {
+  const parts = path.split('/').filter(Boolean);
+  let node = fileTree;
+  for (const p of parts) {
+    if (node[p]) node = node[p];
+    else return [];
+  }
+  const folders = [];
+  for (const [name, child] of Object.entries(node)) {
+    if (name.startsWith('_')) continue;
+    if (!child._sha) {
+      const childKeys = Object.keys(child).filter(k => !k.startsWith('_'));
+      if (childKeys.length > 0) folders.push(name);
+    }
+  }
+  return folders.sort();
+}
+
+function renderGrid(subFolders = []) {
+  let h = '<div class="grid">';
+
+  // Subfolder cards
+  for (const name of subFolders) {
+    const folderPath = currentPath + name + '/';
+    h += `<div class="blob-card" onclick="navigateTo('${folderPath}')" style="cursor:pointer">
+      <div class="card-actions">
+        <div class="kebab-wrap" style="position:relative">
+          <button class="kebab-btn" onclick="event.stopPropagation();toggleKebab(this,'folder:${name}')">&#8942;</button>
+        </div>
+      </div>
+      <div class="preview"><div class="icon" style="font-size:52px;opacity:0.5">&#128193;</div></div>
+      <div class="info">
+        <div class="name" style="color:#58a6ff;font-weight:500">${esc(name)}</div>
+        <div class="meta"><span>folder</span><span></span></div>
+      </div>
+    </div>`;
+  }
+
+  for (const item of displayItems) {
+    const n = esc(item.name);
+    const auditFlag = item.path ? auditStatus[item.path] : null;
+    const auditBadge = auditFlag ? `<div class="audit-badge ${auditFlag}">${auditFlag === 'changed' ? 'CHANGED' : auditFlag === 'new' ? 'NEW' : 'GONE'}</div>` : '';
+    const contentBadge = contentMatches.has(item.sha256) ? `<div class="audit-badge new">CONTENT MATCH</div>` : '';
+    const prev = isImg(item.type)
+      ? `<img src="${esc(item.url)}" loading="lazy" alt="${n}">`
+      : `<div class="icon">${isVid(item.type) ? '&#127909;' : isAud(item.type) ? '&#127925;' : '&#128196;'}</div>`;
+    h += `<div class="blob-card" onclick="showDetail('${item.sha256}')" style="${auditFlag === 'changed' ? 'border-color:#f85149' : auditFlag === 'new' ? 'border-color:#58a6ff' : contentMatches.has(item.sha256) ? 'border-color:#a371f7' : ''}">
+      ${auditBadge}${contentBadge}
+      <div class="card-actions">
+        ${kebabMenuHtml(item.sha256)}
+      </div>
+      <div class="preview">${prev}</div>
+      <div class="info">
+        <div class="name" title="${n}">${n}</div>
+        <div class="meta"><span>${fmtBytes(item.size)}</span><span>${fmtDate(item.uploaded)}</span></div>
+      </div>
+    </div>`;
+  }
+  h += '</div>';
+  content.innerHTML = h;
+}
+
+function renderList(subFolders = []) {
+  const arrow = f => sortField === f ? (sortDir > 0 ? ' &#9650;' : ' &#9660;') : '';
+  let h = `<table class="list-table"><thead><tr>
+    <th style="width:44px"></th>
+    <th onclick="toggleSort('url')">Name<span class="arrow">${arrow('url')}</span></th>
+    <th onclick="toggleSort('type')">Type<span class="arrow">${arrow('type')}</span></th>
+    <th onclick="toggleSort('size')">Size<span class="arrow">${arrow('size')}</span></th>
+    <th onclick="toggleSort('uploaded')">Date<span class="arrow">${arrow('uploaded')}</span></th>
+    <th>Actions</th>
+  </tr></thead><tbody>`;
+
+  // Subfolder rows
+  for (const name of subFolders) {
+    const folderPath = currentPath + name + '/';
+    h += `<tr style="cursor:pointer" onclick="navigateTo('${folderPath}')">
+      <td><div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:18px">&#128193;</div></td>
+      <td><span style="color:#58a6ff;font-weight:500">${esc(name)}</span></td>
+      <td><span class="type-badge">folder</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td class="actions-cell">
+        <div class="kebab-wrap" style="position:relative;display:inline-block">
+          <button class="kebab-btn" onclick="event.stopPropagation();toggleKebab(this,'folder:${name}')">&#8942;</button>
+        </div>
+      </td>
+    </tr>`;
+  }
+
+  for (const item of displayItems) {
+    const n = esc(item.name);
+    const pathStr = esc(item.path || '');
+    const auditFlag = item.path ? auditStatus[item.path] : null;
+    const auditDot = auditFlag ? `<span class="audit-dot ${auditFlag}"></span>` : '';
+    const contentDot = contentMatches.has(item.sha256) ? `<span class="audit-dot" style="background:#a371f7;box-shadow:0 0 4px #a371f766" title="content match"></span>` : '';
+    const thumb = isImg(item.type)
+      ? `<img class="thumb" src="${esc(item.url)}" loading="lazy">`
+      : `<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:18px">${isVid(item.type) ? '&#127909;' : isAud(item.type) ? '&#127925;' : '&#128196;'}</div>`;
+    h += `<tr style="${auditFlag === 'changed' ? 'background:#f8514908' : auditFlag === 'new' ? 'background:#58a6ff08' : contentMatches.has(item.sha256) ? 'background:#a371f708' : ''}">
+      <td>${thumb}</td>
+      <td>${auditDot}${contentDot}<span class="hash" onclick="showDetail('${item.sha256}')">${n}</span>${pathStr ? `<br><span style="font-size:10px;color:#8b949e">${pathStr}</span>` : ''}</td>
+      <td><span class="type-badge">${esc(item.type || '?')}</span></td>
+      <td>${fmtBytes(item.size)}</td>
+      <td>${fmtDate(item.uploaded)}</td>
+      <td class="actions-cell">
+        ${kebabMenuHtml(item.sha256)}
+      </td>
+    </tr>`;
+  }
+  h += '</tbody></table>';
+  content.innerHTML = h;
+}
+
+// =============================================
+// Modals
+// =============================================
+async function showDetail(sha256) {
+  const b = blobMap.get(sha256);
+  if (!b) return;
+  const n = displayName(sha256, b.url);
+  const pathStr = shaToPath[sha256] || '';
+  document.getElementById('modalTitle').textContent = n;
+
+  let body = '';
+  if (isImg(b.type)) body += `<img src="${esc(b.url)}" alt="${esc(n)}">`;
+  else if (isVid(b.type)) body += `<video src="${esc(b.url)}" controls style="max-width:100%"></video>`;
+  else if (isAud(b.type)) body += `<audio src="${esc(b.url)}" controls style="width:100%"></audio>`;
+  else if (isText(b.type)) {
+    body += `<div id="text-preview-container" style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:12px;color:#8b949e">&#128196; ${esc(b.type)}</span>
+      </div>
+      <pre id="text-preview-content" class="text-preview" style="background:#161b22;border:1px solid #30363d;border-radius:6px;padding:12px;max-height:300px;overflow:auto;font-size:13px;line-height:1.5;color:#c9d1d9;white-space:pre-wrap;word-break:break-word;margin:0">Loading...</pre>
+    </div>`;
+  }
+
+  body += `<dl class="detail">
+    <dt>SHA256:</dt><dd style="font-family:monospace;font-size:11px;word-break:break-all">${esc(b.sha256)}</dd><br>
+    ${pathStr ? `<dt>Path:</dt><dd style="color:#58a6ff">${esc(pathStr)}</dd><br>` : ''}
+    <dt>Size:</dt><dd>${fmtBytes(b.size)}</dd><br>
+    <dt>Type:</dt><dd>${esc(b.type || 'unknown')}</dd><br>
+    <dt>Uploaded:</dt><dd>${fmtDate(b.uploaded)}</dd><br>
+    <dt>URL:</dt><dd><a href="${esc(b.url)}" target="_blank" style="color:#58a6ff;font-size:12px">${esc(b.url)}</a></dd>
+  </dl>`;
+
+  // Audit section in detail modal
+  const auditFlag = pathStr ? auditStatus[pathStr] : null;
+  if (auditFlag) {
+    const history = getAuditHistory(pathStr);
+    body += `<div style="margin-top:14px;padding:10px;background:${auditFlag === 'changed' ? '#f8514922' : '#58a6ff22'};border:1px solid ${auditFlag === 'changed' ? '#f8514944' : '#58a6ff44'};border-radius:6px">
+      <div style="font-weight:600;color:${auditFlag === 'changed' ? '#f85149' : '#58a6ff'};margin-bottom:6px">
+        ${auditFlag === 'changed' ? '&#9888; Content changed since last audit' : auditFlag === 'new' ? 'New file' : 'File removed'}
+      </div>
+      ${history.length > 0 ? `<div style="font-size:12px;color:#8b949e">${history.length} versions recorded · ${history.filter(h => h.sha256 !== sha256).length} different hashes</div>` : ''}
+    </div>`;
+
+    // Version history table
+    if (history.length > 1) {
+      body += `<div style="margin-top:10px"><strong style="font-size:12px;color:#8b949e">Version History</strong>
+        <table style="width:100%;border-collapse:collapse;margin-top:6px">`;
+      for (let i = history.length - 1; i >= 0; i--) {
+        const entry = history[i];
+        const isCurrent = entry.sha256 === sha256;
+        const prev = i > 0 ? history[i - 1] : null;
+        const changed = prev && prev.sha256 !== entry.sha256;
+        body += `<tr style="border-bottom:1px solid #21262d;${changed ? 'background:#f8514908' : ''}">
+          <td style="padding:3px 6px;font-size:11px;color:#8b949e">${fmtDate(entry.timestamp)}</td>
+          <td style="padding:3px 6px;font-family:monospace;font-size:10px;color:${isCurrent ? '#3fb950' : '#c9d1d9'}">${esc(entry.sha256.slice(0, 16))}...${changed ? ' &#9888;' : ''}</td>
+          <td style="padding:3px 6px">${!isCurrent ? `<button class="btn-sm" style="font-size:10px;padding:2px 6px" onclick="viewHashVersion('${entry.sha256}')">View</button>` : '<span style="font-size:10px;color:#3fb950">current</span>'}</td>
+        </tr>`;
+      }
+      body += '</table></div>';
+    }
+  }
+
+  document.getElementById('modalBody').innerHTML = body;
+  document.getElementById('modalFooter').innerHTML = `
+    ${auditFlag ? `<button class="btn-sm" style="color:#d29922;border-color:#d29922" onclick="showAuditDetail('${b.sha256}')">Full Audit</button>` : ''}
+    ${pathStr ? `<button class="btn-sm" style="color:#58a6ff;border-color:#58a6ff" onclick="renameFile('${b.sha256}')">Rename</button>` : ''}
+    <button class="btn-sm" onclick="window.open('${esc(b.url)}')">Download</button>
+    ${pathStr ? `<button class="btn-sm" style="color:#d29922;border-color:#d29922" onclick="closeModal('detailModal');removePath('${pathStr}')">Remove Path</button>` : ''}
+    <button class="btn-sm" style="color:#f85149;border-color:#f85149" onclick="closeModal('detailModal');confirmDel('${b.sha256}')">Delete</button>
+    <button class="btn-sm" onclick="closeModal('detailModal')">Close</button>`;
+  openModal('detailModal');
+
+  // Fetch text content for preview
+  if (isText(b.type)) {
+    const pre = document.getElementById('text-preview-content');
+    if (pre) {
+      try {
+        const res = await proxyFetch(b.url);
+        const text = await res.text();
+        pre.textContent = text;
+      } catch (e) {
+        pre.textContent = 'Failed to load file content: ' + e.message;
+        pre.style.color = '#f85149';
+      }
+    }
+  }
+}
+
+function confirmDel(sha256) {
+  document.getElementById('deleteHash').textContent = sha256;
+  document.getElementById('confirmDeleteBtn').onclick = () => deleteBlob(sha256);
+  openModal('deleteModal');
+}
+
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) {
+  // PiP: if closing the info modal while video is playing, enter Picture-in-Picture
+  if (id === 'infoModal') {
+    const video = document.getElementById('tutorialVideo');
+    if (video && !video.paused && document.pictureInPictureEnabled) {
+      video.requestPictureInPicture().catch(() => {});
+    }
+  }
+  document.getElementById(id).classList.remove('show');
+}
+
+function toggleSort(f) {
+  if (sortField === f) sortDir *= -1;
+  else { sortField = f; sortDir = (f === 'uploaded' || f === 'size') ? -1 : 1; }
+  applyFiltersInternal();
+}
+
+function toggleUploadZone() {
+  uploadZone.style.display = uploadZone.style.display === 'none' ? 'block' : 'none';
+}
+
+// =============================================
+// Event Listeners
+// =============================================
+loginBtn.addEventListener('click', async () => {
+  loginError.textContent = '';
+  loginBtn.disabled = true;
+  loginBtn.textContent = 'Connecting...';
+
+  try {
+    serverUrl = document.getElementById('serverInput').value.trim().replace(/\/+$/, '');
+    if (!serverUrl) throw new Error('Server URL required');
+    if (!/^https?:\/\//i.test(serverUrl)) serverUrl = 'https://' + serverUrl;
+    nostrExt = window.nostr;
+
+    if (sharedView) {
+      // Shared view: pubkey stays as target npub, visitor just provides auth
+      const visitorPubkey = await nostrExt.getPublicKey();
+      localStorage.setItem('blossom_explorer', JSON.stringify({ pubkey, serverUrl }));
+      await showSharedView();
+    } else {
+      // Normal: pubkey = visitor's own
+      pubkey = await nostrExt.getPublicKey();
+      localStorage.setItem('blossom_explorer', JSON.stringify({ pubkey, serverUrl }));
+      await showApp();
+    }
+  } catch (e) {
+    loginError.textContent = e.message;
+    loginBtn.disabled = false;
+    loginBtn.textContent = 'Connect with Nostr';
+  }
+});
+
+document.getElementById('infoBtn').addEventListener('click', () => {
+  openModal('infoModal');
+});
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  localStorage.removeItem('blossom_explorer');
+  pubkey = '';
+  serverUrl = '';
+  blobs = []; rebuildBlobMap();
+  cursorStack = [];
+  userRelays = [];
+  manifest = null;
+  pathToSha = {};
+  shaToPath = {};
+  fileTree = {};
+  currentPath = '/';
+  showLogin();
+});
+
+document.getElementById('viewGridBtn').addEventListener('click', () => {
+  viewMode = 'grid';
+  document.getElementById('viewGridBtn').classList.add('active');
+  document.getElementById('viewListBtn').classList.remove('active');
+  render();
+});
+
+document.getElementById('viewListBtn').addEventListener('click', () => {
+  viewMode = 'list';
+  document.getElementById('viewListBtn').classList.add('active');
+  document.getElementById('viewGridBtn').classList.remove('active');
+  render();
+});
+
+document.getElementById('refreshBtn').addEventListener('click', () => {
+  cursorStack = [];
+  Promise.all([fetchManifests(), fetchBlobs('')]);
+});
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+  if (cursorStack.length > 0) fetchBlobs(cursorStack.pop());
+});
+
+document.getElementById('nextBtn').addEventListener('click', () => {
+  if (nextCursor) { cursorStack.push(currentCursor); fetchBlobs(nextCursor); }
+});
+
+// Search triggers: button click or Enter in search input
+document.getElementById('searchBtn').addEventListener('click', applyFilters);
+document.getElementById('searchInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') applyFilters(); });
+document.getElementById('typeFilter').addEventListener('change', applyFiltersInternal);
+
+// Upload buttons
+document.getElementById('uploadFilesBtn').addEventListener('click', () => {
+  document.getElementById('fileInput').click();
+});
+
+document.getElementById('uploadDirBtn').addEventListener('click', () => {
+  document.getElementById('dirInput').click();
+});
+
+document.getElementById('fileInput').addEventListener('change', (e) => {
+  const files = Array.from(e.target.files);
+  e.target.value = '';
+  handleFiles(files);
+});
+
+document.getElementById('dirInput').addEventListener('change', (e) => {
+  const files = Array.from(e.target.files);
+  e.target.value = '';
+  handleDirFiles(files);
+});
+
+// Upload zone click and drag-and-drop
+uploadZone.addEventListener('click', () => {
+  document.getElementById('fileInput').click();
+});
+
+uploadZone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  uploadZone.classList.add('dragover');
+});
+
+uploadZone.addEventListener('dragleave', () => {
+  uploadZone.classList.remove('dragover');
+});
+
+uploadZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
+});
+
+// Drag-and-drop on whole page
+document.addEventListener('dragover', (e) => {
+  if (app.style.display !== 'none') {
+    e.preventDefault();
+    uploadZone.style.display = 'block';
+    uploadZone.classList.add('dragover');
+  }
+});
+
+document.addEventListener('dragleave', (e) => {
+  if (e.relatedTarget === null && app.style.display !== 'none') {
+    uploadZone.classList.remove('dragover');
+  }
+});
+
+document.addEventListener('drop', (e) => {
+  if (app.style.display !== 'none') {
+    e.preventDefault();
+    uploadZone.classList.remove('dragover');
+    if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
+  }
+});
+
+// New folder button
+document.getElementById('newFolderBtn').addEventListener('click', () => {
+  document.getElementById('newFolderInput').value = '';
+  openModal('newFolderModal');
+  setTimeout(() => document.getElementById('newFolderInput').focus(), 100);
+});
+
+document.getElementById('confirmNewFolderBtn').addEventListener('click', () => {
+  const name = document.getElementById('newFolderInput').value.trim();
+  if (name) {
+    closeModal('newFolderModal');
+    createFolder(name);
+  }
+});
+
+document.getElementById('newFolderInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    document.getElementById('confirmNewFolderBtn').click();
+  }
+});
+
+// =============================================
+// Mirror blobs to another Blossom server (BUD-04)
+// =============================================
+document.getElementById('mirrorBtn').addEventListener('click', () => {
+  document.getElementById('mirrorSource').textContent = serverUrl;
+  document.getElementById('mirrorStatus').textContent = `${blobs.length} blobs visible (may be more with pagination)`;
+  document.getElementById('mirrorProgress').style.display = 'none';
+  document.getElementById('mirrorBar').style.width = '0%';
+  document.getElementById('confirmMirrorBtn').disabled = false;
+  openModal('mirrorModal');
+});
+
+document.getElementById('confirmMirrorBtn').addEventListener('click', async () => {
+  const targetServer = document.getElementById('mirrorTargetInput').value.trim().replace(/\/+$/, '');
+  if (!targetServer) { alert('Enter a target server URL'); return; }
+
+  const scope = document.getElementById('mirrorScope').value;
+  const statusEl = document.getElementById('mirrorStatus');
+  const progressEl = document.getElementById('mirrorProgress');
+  const barEl = document.getElementById('mirrorBar');
+  const countEl = document.getElementById('mirrorCount');
+  const btn = document.getElementById('confirmMirrorBtn');
+
+  btn.disabled = true;
+  progressEl.style.display = 'block';
+
+  // Collect all blobs to mirror
+  let allBlobs = [...blobs];
+  if (scope === 'all') {
+    // Paginate through all blobs
+    let cursor = '';
+    allBlobs = [];
+    statusEl.textContent = 'Fetching all blobs...';
+    while (true) {
+      try {
+        const token = await createAuthToken('list');
+        let targetUrl = `${serverUrl}/list/${pubkey}?limit=50`;
+        if (cursor) targetUrl += `&cursor=${cursor}`;
+        const resp = await proxyFetch(targetUrl, {
+          headers: { 'Authorization': `Nostr ${token}` },
+        });
+        if (!resp.ok) break;
+        const page = await resp.json();
+        allBlobs.push(...page);
+        if (page.length < 50) break;
+        cursor = page[page.length - 1]?.sha256;
+      } catch { break; }
+    }
+  }
+
+  const total = allBlobs.length;
+  statusEl.textContent = `Mirroring ${total} blobs to ${targetServer}...`;
+
+  let mirrored = 0;
+  let failed = 0;
+  let skipped = 0;
+
+  for (let i = 0; i < allBlobs.length; i++) {
+    const blob = allBlobs[i];
+    const sourceUrl = blob.url || `${serverUrl}/${blob.sha256}`;
+    countEl.textContent = `${i + 1}/${total} — ${mirrored} mirrored, ${skipped} skipped, ${failed} failed`;
+
+    try {
+      // Try Blossom auth first (kind 24242) — works on most servers including Route96
+      const mirrorUrl = `${targetServer}/mirror`;
+      const blossomToken = await createAuthToken('upload');
+      let resp = await proxyFetch(mirrorUrl, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Nostr ${blossomToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: sourceUrl }),
+      });
+
+      // If Blossom auth fails, try NIP-98 auth (kind 27235)
+      if (resp.status === 401) {
+        const nip98token = await createNIP98Token('PUT', mirrorUrl, sourceUrl);
+        resp = await proxyFetch(mirrorUrl, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Nostr ${nip98token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ url: sourceUrl }),
+        });
+      }
+
+      if (resp.ok) {
+        mirrored++;
+      } else if (resp.status === 409) {
+        skipped++; // already exists
+      } else {
+        failed++;
+        const errText = await resp.text().catch(() => '');
+        if (i === 0) {
+          console.warn(`Mirror failed for ${blob.sha256?.slice(0,12)}: ${resp.status} ${errText.slice(0,200)}`);
+          statusEl.textContent = `First mirror failed: ${resp.status} — ${errText.slice(0, 200)}`;
+          statusEl.style.color = '#f85149';
+        }
+      }
+    } catch {
+      failed++;
+    }
+
+    barEl.style.width = `${((i + 1) / total * 100).toFixed(1)}%`;
+  }
+
+  statusEl.textContent = `Done! ${mirrored} mirrored, ${skipped} already existed, ${failed} failed out of ${total}`;
+  countEl.textContent = '';
+  btn.disabled = false;
+});
+
+// =============================================
+// Window bindings for onclick handlers in HTML
+// =============================================
+window.navigateTo = navigateTo;
+window.showDetail = showDetail;
+window.showDetailForSha = showDetailForSha;
+window.closeModal = closeModal;
+window.openModal = openModal;
+window.toggleSort = toggleSort;
+window.toggleKebab = toggleKebab;
+window.closeKebab = closeKebab;
+window.deletePath = deletePath;
+window.renameFile = renameFile;
+window.confirmDel = confirmDel;
+window.toggleDir = toggleDir;
+window.copyText = copyText;
+window.shareBlob = shareBlob;
+window.downloadBySha = downloadBySha;
+window.showAuditDetail = showAuditDetail;
+window.viewHashVersion = viewHashVersion;
+window.removePath = removePath;
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) closeModal(el.id); });
+});
+
+// Init
+init();
+</script>
+
+</body>
+</html>

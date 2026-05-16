@@ -1,0 +1,534 @@
+/* ============================================================
+   Blossom Explorer — Shared Theme
+   Consolidated CSS custom properties, reset, and shared component
+   styles used across both the Explorer and Audit pages.
+   ============================================================ */
+
+/* ----------------------------------------------------------
+   1. CSS Custom Properties (Design Tokens)
+   ---------------------------------------------------------- */
+:root {
+  /* Backgrounds */
+  --bg-dark: #0d1117;
+  --bg-card: #161b22;
+  --bg-subtle: #1c2128;
+  --bg-input: #0d1117;
+
+  /* Borders */
+  --border: #30363d;
+  --border-subtle: #21262d;
+
+  /* Text */
+  --text-primary: #c9d1d9;
+  --text-secondary: #8b949e;
+  --text-muted: #6e7681;
+  --text-dim: #484f58;
+  --text-white: #fff;
+
+  /* Accent — Blue */
+  --accent-blue: #58a6ff;
+  --accent-blue-dim: #1f6feb;
+  --accent-blue-hover: #388bfd;
+  --accent-blue-glow: #58a6ff66;
+  --accent-blue-tint: #1f6feb22;
+
+  /* Accent — Purple */
+  --accent-purple: #8957e5;
+  --accent-purple-hover: #a371f7;
+  --accent-purple-dark: #6e40c9;
+
+  /* Green */
+  --green: #3fb950;
+  --green-dark: #238636;
+  --green-hover: #2ea043;
+  --green-tint: #3fb95022;
+  --green-border: #3fb95044;
+
+  /* Red */
+  --red: #f85149;
+  --red-dark: #da3633;
+  --red-tint: #f8514922;
+  --red-border: #f8514944;
+  --red-glow: #f8514966;
+
+  /* Yellow / Amber */
+  --amber: #d29922;
+  --amber-bright: #e3b341;
+  --amber-tint: #d299221a;
+  --amber-border: #d2992244;
+  --amber-glow: #d2992266;
+
+  /* Shadows & Overlays */
+  --overlay: rgba(0, 0, 0, 0.7);
+  --shadow-menu: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* ----------------------------------------------------------
+   2. Reset & Base Body Styles
+   ---------------------------------------------------------- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg-dark);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+/* ----------------------------------------------------------
+   3. Focus-Visible Outlines
+   ---------------------------------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+
+/* ----------------------------------------------------------
+   4. Login Screen
+   ---------------------------------------------------------- */
+.login-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.login-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 40px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+}
+
+.login-box h1 {
+  color: var(--accent-blue);
+  margin-bottom: 8px;
+}
+
+.login-box p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+/* ----------------------------------------------------------
+   5. Server Input
+   ---------------------------------------------------------- */
+.server-input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.login-box .server-input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+/* ----------------------------------------------------------
+   6. Buttons — Primary (.btn)
+   ---------------------------------------------------------- */
+.btn {
+  background: var(--border-subtle);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn:hover {
+  background: var(--border);
+}
+
+.btn.primary {
+  background: var(--accent-blue-dim);
+  border-color: var(--accent-blue-dim);
+  color: var(--text-white);
+  padding: 12px 24px;
+  font-size: 15px;
+  border-radius: 8px;
+  width: 100%;
+  justify-content: center;
+}
+
+.btn.primary:hover {
+  background: var(--accent-blue-hover);
+}
+
+.btn.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ----------------------------------------------------------
+   7. Buttons — Small (.btn-sm) & Variants
+   ---------------------------------------------------------- */
+.btn-sm {
+  background: var(--border-subtle);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.btn-sm:hover {
+  background: var(--border);
+}
+
+.btn-sm.active {
+  background: var(--accent-blue-dim);
+  border-color: var(--accent-blue-dim);
+  color: var(--text-white);
+}
+
+.btn-sm.refresh {
+  background: var(--green-dark);
+  border-color: var(--green-dark);
+  color: var(--text-white);
+}
+
+.btn-sm.refresh:hover {
+  background: var(--green-hover);
+}
+
+.btn-sm.upload {
+  background: var(--accent-purple);
+  border-color: var(--accent-purple);
+  color: var(--text-white);
+}
+
+.btn-sm.upload:hover {
+  background: var(--accent-purple-hover);
+}
+
+.btn-sm.warn {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: #000;
+}
+
+.btn-sm.warn:hover {
+  background: var(--amber-bright);
+}
+
+.btn-sm.danger {
+  background: var(--red);
+  border-color: var(--red);
+  color: var(--text-white);
+}
+
+.btn-sm.danger:hover {
+  background: var(--red-dark);
+}
+
+.btn-sm.ok {
+  background: var(--green-dark);
+  border-color: var(--green-dark);
+  color: var(--text-white);
+}
+
+.btn-sm.ok:hover {
+  background: var(--green-hover);
+}
+
+/* ----------------------------------------------------------
+   8. Header
+   ---------------------------------------------------------- */
+.header {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header h1 {
+  font-size: 18px;
+  color: var(--accent-blue);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-info {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+
+/* ----------------------------------------------------------
+   9. Extension Status
+   ---------------------------------------------------------- */
+.ext-status {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.ext-status.ok {
+  color: var(--green);
+}
+
+/* ----------------------------------------------------------
+   10. Login Error
+   ---------------------------------------------------------- */
+.login-error {
+  color: var(--red);
+  font-size: 13px;
+  margin-top: 12px;
+}
+
+/* ----------------------------------------------------------
+   11. Toolbar
+   ---------------------------------------------------------- */
+.toolbar {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 24px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.toolbar input,
+.toolbar select {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.toolbar input[type="search"] {
+  width: 240px;
+}
+
+.toolbar select {
+  min-width: 130px;
+}
+
+.toolbar .spacer {
+  flex: 1;
+}
+
+/* ----------------------------------------------------------
+   12. Modal
+   ---------------------------------------------------------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.modal-overlay.show {
+  display: flex;
+}
+
+.modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.modal-header {
+  padding: 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h2 {
+  font-size: 15px;
+}
+
+.modal-body {
+  padding: 14px;
+}
+
+.modal-body img,
+.modal-body video {
+  max-width: 100%;
+  max-height: 65vh;
+  border-radius: 4px;
+}
+
+.modal-footer {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* ----------------------------------------------------------
+   13. Loading, Spinner, Empty
+   ---------------------------------------------------------- */
+.loading {
+  text-align: center;
+  padding: 50px;
+  color: var(--text-secondary);
+}
+
+.spinner {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent-blue);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.empty {
+  text-align: center;
+  padding: 50px;
+  color: var(--text-secondary);
+}
+
+/* ----------------------------------------------------------
+   14. Hash Display
+   ---------------------------------------------------------- */
+.hash {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--accent-blue);
+  cursor: pointer;
+}
+
+.hash.old {
+  color: var(--red);
+  text-decoration: line-through;
+}
+
+.hash.current {
+  color: var(--green);
+}
+
+/* ----------------------------------------------------------
+   15. Responsive Breakpoints
+   ---------------------------------------------------------- */
+@media (max-width: 768px) {
+  /* Header stacks vertically */
+  .header {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+    padding: 10px 16px;
+  }
+
+  .header-right {
+    flex-wrap: wrap;
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  /* Toolbar wraps and stacks */
+  .toolbar {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 6px;
+  }
+
+  .toolbar input[type="search"] {
+    width: 100%;
+  }
+
+  /* Sidebar collapses off-screen (toggle with JS) */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -280px;
+    z-index: 500;
+    height: 100vh;
+    width: 260px;
+    min-width: 260px;
+    transition: left 0.25s ease;
+    box-shadow: var(--shadow-menu);
+  }
+
+  .sidebar.open {
+    left: 0;
+  }
+
+  /* Full-width content panel */
+  .main-layout {
+    flex-direction: column;
+  }
+
+  .content-panel {
+    width: 100%;
+  }
+
+  /* Grid adapts to smaller columns */
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  /* Summary cards stack tighter */
+  .summary-cards {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+  }
+
+  /* Audit table scrolls horizontally */
+  .audit-table {
+    display: block;
+    overflow-x: auto;
+  }
+
+  /* Modal takes more screen on mobile */
+  .modal {
+    max-width: 98vw;
+    border-radius: 8px;
+  }
+}

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blossom Audit</title>
+  <link rel="stylesheet" href="../shared/theme.css">
+  <link rel="stylesheet" href="audit.css">
+</head>
+<body>
+
+<!-- Login -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-box">
+    <h1>Blossom Audit</h1>
+    <p>Detect file tampering on Blossom sites</p>
+    <div id="extStatus" class="ext-status">Checking for Nostr login extension...</div>
+    <p style="margin-top:8px"><a href="/glossary" style="color:#8b949e;font-size:12px;text-decoration:none">New to these terms? → Glossary</a></p>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
+    <div style="margin-bottom:12px">
+      <label style="font-size:13px;color:#8b949e;display:block;margin-bottom:4px">Your secret key (nsec) — for publishing snapshots</label>
+      <input type="password" class="server-input" id="nsecInput" placeholder="nsec1... or hex private key">
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button class="btn-sm" id="genKeyBtn" style="font-size:11px">Generate New Key Pair</button>
+        <span id="genKeyInfo" style="font-size:11px;color:#8b949e"></span>
+      </div>
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
+    <div style="margin-bottom:12px">
+      <label style="font-size:13px;color:#8b949e;display:block;margin-bottom:4px">File owner's address (npub)</label>
+      <input type="text" class="server-input" id="targetInput" placeholder="npub1... or hex pubkey to audit">
+    </div>
+    <button class="btn primary" id="loginBtn">Connect & Audit</button>
+    <div id="loginError" class="login-error"></div>
+  </div>
+</div>
+
+<!-- Main app -->
+<div id="app" style="display:none">
+  <div class="header">
+    <h1>Blossom Audit</h1>
+    <div class="header-right">
+      <span class="header-info" id="headerInfo"></span>
+      <a href="/" style="color:#58a6ff;font-size:12px">Explorer</a>
+      <button class="btn-sm" id="logoutBtn">Logout</button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div style="display:flex;align-items:center;gap:8px">
+      <label style="font-size:12px;color:#8b949e">Target:</label>
+      <input type="text" class="server-input" id="targetPubkeyInput" style="width:320px;font-size:12px;padding:4px 8px" placeholder="npub1... or hex pubkey">
+      <button class="btn-sm" id="loadTargetBtn" style="background:#58a6ff;border-color:#58a6ff;color:#fff">Load</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <label style="font-size:12px;color:#8b949e">Blossom:</label>
+      <input type="text" class="server-input" id="blossomServerInput" style="width:240px;font-size:12px;padding:4px 8px" placeholder="https://blossom.primal.net" value="https://blossom.primal.net">
+    </div>
+    <div class="spacer"></div>
+    <button class="btn-sm ok" id="snapshotBtn">Create Snapshot</button>
+    <button class="btn-sm ok" id="publishBtn" style="display:none;background:#238636;border-color:#238636">Publish Snapshot</button>
+    <button class="btn-sm" id="cancelPreviewBtn" style="display:none">Cancel</button>
+    <button class="btn-sm warn" id="auditBtn">Run Audit</button>
+  </div>
+
+  <div class="main" id="main">
+    <div class="empty">Enter a target pubkey above to start auditing their files.</div>
+  </div>
+</div>
+
+<script type="module" src="audit.js"></script>
+</body>
+</html>
