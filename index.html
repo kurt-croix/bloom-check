@@ -10,7 +10,7 @@
 <body>
 
 <!-- Login screen -->
-<div id="loginScreen" class="login-screen">
+<div id="loginScreen" class="login-screen" style="display:none">
   <div class="login-box">
     <h1>Blossom Explorer</h1>
     <p>Browse and manage your stored files (blobs)</p>
@@ -1512,7 +1512,32 @@ async function init() {
       }
     } catch {}
   }
-  showLogin();
+  showGuestApp();
+}
+
+/** Show main UI in guest mode — empty, no auth, login via header */
+function showGuestApp() {
+  loginScreen.style.display = 'none';
+  app.style.display = 'block';
+  serverDisplay.value = '';
+  headerInfo.textContent = '';
+
+  // Hide write-action buttons for guests
+  document.querySelectorAll('.btn-sm.upload').forEach(b => b.style.display = 'none');
+  const mirrorBtn = document.getElementById('mirrorBtn');
+  if (mirrorBtn) mirrorBtn.style.display = 'none';
+
+  // Swap Logout → Login button
+  const logoutBtn = document.getElementById('logoutBtn');
+  logoutBtn.textContent = 'Login';
+  logoutBtn.dataset.guest = '1';
+
+  // Show empty state
+  currentPath = '/';
+  expandedDirs = new Set(['/']);
+  buildFileTree();
+  renderTree();
+  render();
 }
 
 function showLogin() {
@@ -1536,6 +1561,16 @@ async function showApp() {
   app.style.display = 'block';
   serverDisplay.value = serverUrl;
   headerInfo.textContent = `${pubkey.slice(0, 16)}...`;
+
+  // Restore write-action buttons for authenticated users
+  document.querySelectorAll('.btn-sm.upload').forEach(b => b.style.display = '');
+  const mirrorBtn = document.getElementById('mirrorBtn');
+  if (mirrorBtn) mirrorBtn.style.display = '';
+
+  // Swap Login → Logout button
+  const logoutBtn = document.getElementById('logoutBtn');
+  logoutBtn.textContent = 'Logout';
+  delete logoutBtn.dataset.guest;
 
   // Auditor npub — default empty, not persisted
   auditorNpub = '';
@@ -2532,7 +2567,7 @@ document.getElementById('infoBtn').addEventListener('click', () => {
   const fallback = document.getElementById('tutorialFallback');
   if (video && !video.src && video.children.length === 0) {
     const source = document.createElement('source');
-    source.src = 'demo-video.mp4';
+    source.src = 'demo-video';
     source.type = 'video/mp4';
     source.onerror = () => { video.style.display = 'none'; if (fallback) fallback.style.display = 'block'; };
     video.appendChild(source);
@@ -2542,6 +2577,13 @@ document.getElementById('infoBtn').addEventListener('click', () => {
 });
 
 document.getElementById('logoutBtn').addEventListener('click', () => {
+  const btn = document.getElementById('logoutBtn');
+  // If in guest mode, clicking "Login" shows the login dialog
+  if (btn.dataset.guest) {
+    showLogin();
+    return;
+  }
+  // Normal logout → back to guest view
   localStorage.removeItem('blossom_explorer');
   pubkey = '';
   serverUrl = '';
@@ -2553,7 +2595,7 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
   shaToPath = {};
   fileTree = {};
   currentPath = '/';
-  showLogin();
+  showGuestApp();
 });
 
 document.getElementById('viewGridBtn').addEventListener('click', () => {
